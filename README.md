@@ -83,6 +83,12 @@ documents.
   initial-file content, and structured MCP errors.
 - `npm run smoke` passed using a temporary workspace; it discovered and invoked
   `create_work_item` without touching the configured runtime workspace.
+- Manual IBM Bob validation passed: `health_check`,
+  `get_server_capabilities`, and idempotent `initialize_workspace` behaved as
+  expected; `create_work_item` created the complete minimum DRAFT dossier.
+  Duplicate creation returned `WORK_ITEM_ALREADY_EXISTS`, existing dossiers
+  were preserved, and neither successful nor error responses exposed absolute
+  filesystem paths.
 
 ## IBM Bob
 

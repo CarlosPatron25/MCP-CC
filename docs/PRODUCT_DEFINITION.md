@@ -60,5 +60,7 @@ are future milestone work.
 
 Milestones 1 and 2 have verified that an IBM Bob user can run the local server,
 safely initialize an authorized workspace, and create a DRAFT Work Item dossier
-without exposing or modifying files outside that workspace. Milestone 3 will
-extend the dossier progressively; it has not started.
+without exposing or modifying files outside that workspace. Manual IBM Bob
+validation also confirmed duplicate protection and preservation of existing
+dossiers. Milestone 3 will extend the dossier progressively; it has not
+started.

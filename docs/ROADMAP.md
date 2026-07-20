@@ -22,7 +22,10 @@ introduce external integrations, lifecycle operations, or documents assigned to
 later milestones.
 
 Validation passed: typecheck, lint, 32 automated tests, build, combined check,
-and a temporary-workspace MCP smoke test covering `create_work_item`.
+and a temporary-workspace MCP smoke test covering `create_work_item`. Manual
+IBM Bob validation also confirmed health, capabilities, initialization
+idempotency, DRAFT dossier creation, duplicate protection, non-overwrite
+behavior, and the absence of absolute paths in MCP responses.
 
 ## Milestone 3: Context and Document Lifecycle
 

@@ -73,3 +73,11 @@ documents are explicitly deferred to Milestone 3.
 - `npm run smoke` passed using an automatically created and removed temporary
   workspace. It discovered all four tools and successfully initialized and
   created a DRAFT Work Item without using `C:\\WS-Workspace`.
+- Manual validation through IBM Bob passed. `health_check` verified server
+  health; `get_server_capabilities` exposed the four supported tools; and
+  `initialize_workspace` confirmed idempotency. `create_work_item` created the
+  complete minimum DRAFT dossier, returned `WORK_ITEM_ALREADY_EXISTS` for a
+  duplicate, preserved the existing dossier, and exposed no absolute path in
+  success or error responses.
+
+Milestone 3 has not started.
