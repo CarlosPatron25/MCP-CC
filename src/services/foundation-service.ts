@@ -1,0 +1,102 @@
+import { access } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { basename } from 'node:path';
+
+import type { WorkspaceConfig } from '../config/workspace-config.js';
+import { WORK_ITEM_TYPES } from '../domain/work-item.js';
+import {
+  FilesystemAccessError,
+  type StructuredError,
+  toStructuredError,
+} from '../errors/workspace-error.js';
+import {
+  initializeWorkspace,
+  type WorkspaceInitializationResult,
+} from '../filesystem/workspace-initializer.js';
+
+export const SERVER_NAME = 'ws-workspace-mcp';
+export const SERVER_VERSION = '0.1.0';
+export const SCHEMA_VERSION = '1.0.0';
+
+export interface HealthCheckResult {
+  serverName: string;
+  version: string;
+  status: 'ok';
+  checkedAt: string;
+  nodeVersion: string;
+  authorizedRoot: {
+    displayName: string;
+    absolutePathHidden: true;
+  };
+  filesystemAccess: 'read-write';
+}
+
+export interface ServerCapabilitiesResult {
+  schemaVersion: string;
+  capabilities: string[];
+  availableTools: Array<{
+    name: 'health_check' | 'get_server_capabilities' | 'initialize_workspace';
+    mutatesFilesystem: boolean;
+  }>;
+  notImplemented: string[];
+  supportedWorkItemTypes: readonly string[];
+}
+
+export class FoundationService {
+  public constructor(private readonly config: WorkspaceConfig) {}
+
+  public async healthCheck(): Promise<HealthCheckResult> {
+    try {
+      await access(this.config.workspaceRoot, constants.R_OK | constants.W_OK);
+    } catch {
+      throw new FilesystemAccessError('The authorized workspace root is no longer accessible.');
+    }
+
+    return {
+      serverName: SERVER_NAME,
+      version: SERVER_VERSION,
+      status: 'ok',
+      checkedAt: new Date().toISOString(),
+      nodeVersion: process.version,
+      authorizedRoot: {
+        displayName: basename(this.config.workspaceRoot) || 'filesystem-root',
+        absolutePathHidden: true,
+      },
+      filesystemAccess: 'read-write',
+    };
+  }
+
+  public getServerCapabilities(): ServerCapabilitiesResult {
+    return {
+      schemaVersion: SCHEMA_VERSION,
+      capabilities: [
+        'local-stdio-mcp',
+        'secure-workspace-initialization',
+        'foundation-work-item-domain-model',
+      ],
+      availableTools: [
+        { name: 'health_check', mutatesFilesystem: false },
+        { name: 'get_server_capabilities', mutatesFilesystem: false },
+        { name: 'initialize_workspace', mutatesFilesystem: true },
+      ],
+      notImplemented: [
+        'start_work_item',
+        'close_work_item',
+        'reopen_work_item',
+        'record_decision',
+        'create_checkpoint',
+        'rally-integration',
+        'copado-integration',
+      ],
+      supportedWorkItemTypes: WORK_ITEM_TYPES,
+    };
+  }
+
+  public async initializeWorkspace(): Promise<WorkspaceInitializationResult> {
+    return initializeWorkspace(this.config.workspaceRoot);
+  }
+
+  public serializeError(error: unknown): StructuredError {
+    return toStructuredError(error);
+  }
+}
