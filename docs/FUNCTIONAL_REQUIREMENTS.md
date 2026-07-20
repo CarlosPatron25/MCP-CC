@@ -27,6 +27,12 @@ Optional data:
 The actual completion date is generated when an item is closed. Git branches
 are not part of the functional workflow.
 
+Milestone 2 accepts `startedAt` and `plannedCompletionAt` only as ISO dates in
+the `YYYY-MM-DD` format. `plannedCompletionAt` cannot be earlier than
+`startedAt`. `acceptanceCriteria` is a list of text values. The manually
+entered Rally ID is preserved, while a separate safe internal ID is derived for
+the Work Item directory.
+
 ## States
 
 The planned states are DRAFT, ANALYSIS, PLANNED, DEVELOPMENT, TESTING,
@@ -44,12 +50,18 @@ document templates, progresses through analysis, planning, development and
 testing, then is closed and archived. A reopened item must preserve the closed
 history and record why it was reopened.
 
-## Expected documentation
+## Progressive documentation structure
 
-An active item will hold WORK_ITEM.yml, 00_MANIFEST.md through
-09_FINAL_REPORT.md, a context directory containing AI_CONTEXT.md, AI_RULES.md
-and NEXT_TASK.md, plus evidence and snapshots directories. Closed items will
-later be moved or copied to .ws-workspace/archive through a controlled process.
+Milestone 2 creates only the minimum initial dossier: `WORK_ITEM.yml`,
+`00_MANIFEST.md`, `01_FUNCTIONAL_ANALYSIS.md`, `context/AI_CONTEXT.md`,
+`context/AI_RULES.md`, `context/NEXT_TASK.md`, and the `evidence` and
+`snapshots` directories. The initial manifest records the created inventory and
+its initial status.
+
+The complete dossier is a product target, not a Milestone 2 requirement.
+Milestone 3 will generate the remaining lifecycle documents progressively.
+Closed items will later be moved or copied to `.ws-workspace/archive` through a
+controlled process.
 
 ## Future closure and reopening rules
 

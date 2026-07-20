@@ -35,7 +35,7 @@ export interface ServerCapabilitiesResult {
   schemaVersion: string;
   capabilities: string[];
   availableTools: Array<{
-    name: 'health_check' | 'get_server_capabilities' | 'initialize_workspace';
+    name: 'health_check' | 'get_server_capabilities' | 'initialize_workspace' | 'create_work_item';
     mutatesFilesystem: boolean;
   }>;
   notImplemented: string[];
@@ -73,14 +73,15 @@ export class FoundationService {
         'local-stdio-mcp',
         'secure-workspace-initialization',
         'foundation-work-item-domain-model',
+        'secure-work-item-creation',
       ],
       availableTools: [
         { name: 'health_check', mutatesFilesystem: false },
         { name: 'get_server_capabilities', mutatesFilesystem: false },
         { name: 'initialize_workspace', mutatesFilesystem: true },
+        { name: 'create_work_item', mutatesFilesystem: true },
       ],
       notImplemented: [
-        'start_work_item',
         'close_work_item',
         'reopen_work_item',
         'record_decision',

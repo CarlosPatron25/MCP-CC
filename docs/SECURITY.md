@@ -20,6 +20,19 @@ Initialization uses exclusive creation for its README. Existing directories and
 files are reported as existing and are never deleted or overwritten. The server
 does not perform operations outside the authorized root.
 
+## Work Item creation
+
+Milestone 2 keeps the user-supplied Rally ID distinct from the generated
+internal directory ID. The former is preserved as data; the latter is
+normalized to a restricted safe token. Rally IDs containing traversal markers,
+path separators, or control characters are rejected before filesystem use.
+
+The Work Item service writes a complete initial dossier to a unique staging
+directory inside `.ws-workspace` and promotes it only after all directories and
+files are created. A pre-existing target is reported as a stable duplicate
+error and is never overwritten. Service and MCP responses expose only relative
+workspace paths, never absolute filesystem paths.
+
 ## Inputs and errors
 
 Configuration is validated before server startup. Future MCP inputs must be

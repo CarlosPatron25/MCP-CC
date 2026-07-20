@@ -21,6 +21,11 @@ Set WS_WORKSPACE_ROOT to an existing authorized directory before dev or start.
 Build before running start or smoke. Keep this directory separate from the
 source repository; the verified runtime directory is `C:\\WS-Workspace`.
 
+`npm.cmd run smoke` creates and removes a temporary workspace itself. It does
+not require `WS_WORKSPACE_ROOT` and must not be pointed at the real runtime
+workspace. It validates the compiled stdio server through initialization and
+`create_work_item`.
+
 ## IBM Bob runtime configuration
 
 The verified IBM Bob `mcp.json` entry launches the compiled server directly:
@@ -81,6 +86,14 @@ Add a service method and unit tests first. Define a Zod input schema in
 src/mcp/server.ts, register the tool as a thin adapter, return a structured
 serializable result, and map known errors with toStructuredError. Update the
 capabilities response, README and relevant requirements.
+
+## Work Item creation conventions
+
+Keep `create_work_item` as a thin adapter over `WorkItemCreationService`. The
+service validates input and builds document contents; the filesystem layer owns
+safe staging, exclusive file creation, and final promotion into `active/`.
+Tests must use temporary roots, assert that service and MCP responses contain
+no absolute paths, and preserve the Milestone 1 tool behavior.
 
 ## Adding a document or template
 

@@ -45,7 +45,8 @@ runtime work-item data independent of deployments or rebuilds.
 - domain: work-item type vocabulary and future model contracts.
 - config: resolution and verification of the explicit authorized root.
 - filesystem: containment-safe path resolution and idempotent initialization.
-- services: use cases and serializable responses shared by MCP and a future
+- services: reusable use cases, including Work Item validation and dossier
+  template creation, with serializable responses shared by MCP and a future
   diagnostic CLI.
 - mcp: thin registrations that convert service results and errors to tool
   results.
@@ -78,6 +79,20 @@ writable directory that is not a filesystem volume root. Every child path is
 resolved against that root and rejected when its relative path escapes it. The
 initializer has no user-provided path argument, further reducing traversal
 surface.
+
+## Work Item creation
+
+`create_work_item` is a thin MCP adapter over `WorkItemCreationService`. The
+service validates the manual input with Zod, normalizes a safe internal ID from
+the Rally ID, builds the initial DRAFT `WorkItem`, and requests persistence from
+the filesystem layer. The original Rally ID remains a distinct persisted field.
+
+The filesystem layer requires the Milestone 1 workspace structure to exist. It
+rejects non-directory or unsafe targets, writes the dossier in a unique staging
+directory below `.ws-workspace`, and promotes it to `active/<id>` only after all
+files have been created. Existing target directories are never overwritten.
+Returned paths are relative to the authorized workspace; absolute paths are not
+returned by the service or the MCP adapter.
 
 ## Configuration
 

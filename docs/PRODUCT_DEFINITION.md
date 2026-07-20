@@ -28,11 +28,17 @@ embedding business knowledge in the MCP adapter.
 
 ## MVP scope
 
-The MVP supports exactly four work-item types, local file persistence, a
-document lifecycle, state tracking, safe search and an MCP-first interface for
-IBM Bob. Milestone 1 is completed and provides the validated secure MCP
-foundation and workspace initialization; later MVP behavior remains future
-milestone work.
+The intended MVP supports exactly four work-item types, local file persistence,
+a document lifecycle, state tracking, safe search and an MCP-first interface
+for IBM Bob.
+
+Milestones 1 and 2 are completed and validated. Milestone 1 provides the
+secure MCP foundation and workspace initialization. Milestone 2 provides safe,
+manual creation of a DRAFT Work Item and its minimum initial dossier through
+`create_work_item`. The delivered dossier contains the persisted Work Item,
+manifest, functional analysis, initial AI context, and evidence and snapshot
+directories. Lifecycle operations, search, and the remaining dossier documents
+are future milestone work.
 
 ## Outside the MVP
 
@@ -52,7 +58,7 @@ milestone work.
 
 ## Initial definition of success
 
-Milestone 1 has verified that an IBM Bob user can run the local server and
-safely initialize an authorized workspace without exposing or modifying files
-outside it. Later milestones will extend that foundation to complete work-item
-dossiers.
+Milestones 1 and 2 have verified that an IBM Bob user can run the local server,
+safely initialize an authorized workspace, and create a DRAFT Work Item dossier
+without exposing or modifying files outside that workspace. Milestone 3 will
+extend the dossier progressively; it has not started.

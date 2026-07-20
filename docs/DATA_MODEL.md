@@ -18,6 +18,8 @@ are Future.
 - functional: Required FunctionalContext.
 - initialScope: Required InitialScope.
 - business: Optional BusinessContext.
+- createdAt: Generated ISO timestamp at creation.
+- updatedAt: Generated ISO timestamp, initially equal to createdAt.
 - decisions, checkpoints, tests: Future collections.
 
 ## Enumerations
@@ -25,6 +27,18 @@ are Future.
 WorkItemType is exactly USER_STORY, DEFECT, INCIDENT and TECHNICAL_TASK.
 WorkItemStatus is DRAFT, ANALYSIS, PLANNED, DEVELOPMENT, TESTING,
 READY_FOR_REVIEW, CLOSED, BLOCKED, REOPENED and CANCELLED.
+
+## Milestone 2 creation contract
+
+`id` and `rallyId` are independent concepts. The manually supplied `rallyId`
+is persisted exactly as entered. Milestone 2 derives the safe internal `id`
+from that value only for directory naming; later milestones may use a different
+ID-generation strategy without changing the semantic distinction.
+
+Creation accepts only `YYYY-MM-DD` ISO dates. `startedAt` is required and
+`plannedCompletionAt`, when present, must not precede it. `actualCompletionAt`
+is not accepted at creation and remains generated only by future closure work.
+`acceptanceCriteria` is an optional list of text values.
 
 ## Supporting records
 
@@ -41,6 +55,8 @@ READY_FOR_REVIEW, CLOSED, BLOCKED, REOPENED and CANCELLED.
 | TestCase               | id, title, result                      | evidenceReferences    | future execution detail       |
 | WorkItemManifest       | schemaVersion, workItemId, generatedAt | none                  | future document inventory     |
 
-The TypeScript interfaces in src/domain/work-item.ts intentionally model this
-vocabulary but, at the completion of Milestone 1, do not yet persist or expose
-actual work items.
+Milestone 2 persists the initial `WorkItem` fields in `WORK_ITEM.yml`, together
+with `schemaVersion`, `createdAt`, and `updatedAt`. Optional responsibility and
+business records are represented as null in the persisted YAML when absent, so
+the file retains a stable top-level structure without changing their optional
+domain semantics.

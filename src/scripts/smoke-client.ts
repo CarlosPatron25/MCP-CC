@@ -1,12 +1,11 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 
 async function run(): Promise<void> {
-  const workspaceRoot = process.env.WS_WORKSPACE_ROOT;
-  if (workspaceRoot === undefined || workspaceRoot.trim().length === 0) {
-    throw new Error('WS_WORKSPACE_ROOT must be set before running the MCP smoke test.');
-  }
+  const workspaceRoot = await mkdtemp(resolve(tmpdir(), 'ws-workspace-mcp-smoke-'));
 
   const client = new Client({
     name: 'ws-workspace-mcp-smoke-client',
@@ -20,9 +19,8 @@ async function run(): Promise<void> {
     },
   });
 
-  await client.connect(transport);
-
   try {
+    await client.connect(transport);
     const tools = await client.listTools();
     const health = await client.callTool({ name: 'health_check', arguments: {} });
     const capabilities = await client.callTool({
@@ -33,6 +31,18 @@ async function run(): Promise<void> {
       name: 'initialize_workspace',
       arguments: {},
     });
+    const creation = await client.callTool({
+      name: 'create_work_item',
+      arguments: {
+        type: 'USER_STORY',
+        rallyId: 'SMOKE-1',
+        title: 'Smoke-test Work Item',
+        functionalDefinition: 'Verify secure Work Item creation through MCP.',
+        developmentAlias: 'smoke',
+        relatedComponents: ['smoke-client'],
+        startedAt: '2026-07-20',
+      },
+    });
 
     process.stdout.write(
       JSON.stringify(
@@ -41,13 +51,15 @@ async function run(): Promise<void> {
           health,
           capabilities,
           initialization,
+          creation,
         },
         null,
         2,
       ) + '\n',
     );
   } finally {
-    await client.close();
+    await client.close().catch(() => undefined);
+    await rm(workspaceRoot, { recursive: true, force: true });
   }
 }
 

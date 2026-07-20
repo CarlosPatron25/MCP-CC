@@ -39,7 +39,10 @@ describe('FoundationService', () => {
     expect(service.getServerCapabilities()).toMatchObject({
       schemaVersion: '1.0.0',
       supportedWorkItemTypes: ['USER_STORY', 'DEFECT', 'INCIDENT', 'TECHNICAL_TASK'],
-      notImplemented: expect.arrayContaining(['start_work_item', 'close_work_item']),
+      availableTools: expect.arrayContaining([
+        { name: 'create_work_item', mutatesFilesystem: true },
+      ]),
+      notImplemented: expect.arrayContaining(['close_work_item']),
     });
   });
 });

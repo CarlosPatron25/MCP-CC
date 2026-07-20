@@ -12,15 +12,24 @@ Bob `mcp.json` registration, real MCP tool execution over stdio, and secure
 filesystem isolation. See [CURRENT_STATE.md](CURRENT_STATE.md) for the
 verification record.
 
-## Milestone 2: Work Item Creation
+## Milestone 2: Work Item Creation - COMPLETED
 
 Validate manual fields, create a work-item directory and initial dossier, and
-persist the initial manifest. It must not introduce external integrations.
+persist the initial manifest. Its delivered structure is limited to
+`WORK_ITEM.yml`, `00_MANIFEST.md`, `01_FUNCTIONAL_ANALYSIS.md`, the three
+context documents, and the `evidence` and `snapshots` directories. It must not
+introduce external integrations, lifecycle operations, or documents assigned to
+later milestones.
+
+Validation passed: typecheck, lint, 32 automated tests, build, combined check,
+and a temporary-workspace MCP smoke test covering `create_work_item`.
 
 ## Milestone 3: Context and Document Lifecycle
 
 Generate and update the functional, current-state, technical-analysis, impact,
 implementation-plan and AI-context documents through controlled services.
+This milestone expands the dossier beyond the minimum structure created in
+Milestone 2.
 
 ## Milestone 4: Decisions, Checkpoints and Testing
 

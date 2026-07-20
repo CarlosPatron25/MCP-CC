@@ -4,8 +4,8 @@
 
 Milestone 1 is officially closed. Its delivered scope is the secure local MCP
 foundation: health inspection, capability discovery, and idempotent runtime
-workspace initialization. Work-item creation, lifecycle management, external
-adapters, and all Milestone 2 behavior remain out of scope.
+workspace initialization. At the time of its closure, Work Item creation,
+lifecycle management, and external adapters remained out of scope.
 
 ## Milestone 1 Validation
 
@@ -51,7 +51,25 @@ and build location; `C:\\WS-Workspace` is the runtime workspace. This
 separation ensures that MCP filesystem writes target the explicitly authorized
 runtime data location rather than the project repository.
 
-## Next milestone boundary
+## Milestone 2: COMPLETED
 
-The repository is ready to begin Milestone 2: Work Item Creation. No
-Milestone 2 functionality has been implemented as part of this closure.
+Milestone 2 implements safe, manual creation of a DRAFT Work Item and its
+minimum initial dossier through `create_work_item`. The server validates the
+input, derives a safe internal `id` without replacing the user-provided
+`rallyId`, prevents duplicate or traversal-based creation, and writes the
+dossier under `.ws-workspace/active` through a staging area.
+
+The initial structure is limited to `WORK_ITEM.yml`, `00_MANIFEST.md`,
+`01_FUNCTIONAL_ANALYSIS.md`, `context/AI_CONTEXT.md`, `context/AI_RULES.md`,
+`context/NEXT_TASK.md`, `evidence/`, and `snapshots/`. The remaining dossier
+documents are explicitly deferred to Milestone 3.
+
+## Milestone 2 Validation
+
+- `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`, and
+  `npm run check` passed.
+- The full suite reports 32 passing tests, including real MCP adapter coverage
+  for the successful response and a structured duplicate error.
+- `npm run smoke` passed using an automatically created and removed temporary
+  workspace. It discovered all four tools and successfully initialized and
+  created a DRAFT Work Item without using `C:\\WS-Workspace`.

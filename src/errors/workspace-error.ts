@@ -2,7 +2,11 @@ export type WorkspaceErrorCode =
   | 'CONFIGURATION_INVALID'
   | 'FILESYSTEM_ACCESS_DENIED'
   | 'PATH_OUTSIDE_WORKSPACE'
-  | 'WORKSPACE_INITIALIZATION_FAILED';
+  | 'WORKSPACE_INITIALIZATION_FAILED'
+  | 'WORKSPACE_NOT_INITIALIZED'
+  | 'WORK_ITEM_VALIDATION_FAILED'
+  | 'WORK_ITEM_ALREADY_EXISTS'
+  | 'WORK_ITEM_CREATION_FAILED';
 
 export interface StructuredError {
   error: {
@@ -48,6 +52,34 @@ export class WorkspaceInitializationError extends WorkspaceError {
   public constructor(message: string, details?: Record<string, string>) {
     super('WORKSPACE_INITIALIZATION_FAILED', message, details);
     this.name = 'WorkspaceInitializationError';
+  }
+}
+
+export class WorkspaceNotInitializedError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('WORKSPACE_NOT_INITIALIZED', message, details);
+    this.name = 'WorkspaceNotInitializedError';
+  }
+}
+
+export class WorkItemValidationError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('WORK_ITEM_VALIDATION_FAILED', message, details);
+    this.name = 'WorkItemValidationError';
+  }
+}
+
+export class WorkItemAlreadyExistsError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('WORK_ITEM_ALREADY_EXISTS', message, details);
+    this.name = 'WorkItemAlreadyExistsError';
+  }
+}
+
+export class WorkItemCreationError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('WORK_ITEM_CREATION_FAILED', message, details);
+    this.name = 'WorkItemCreationError';
   }
 }
 

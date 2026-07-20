@@ -86,6 +86,8 @@ export interface WorkItem {
   functional: FunctionalContext;
   initialScope: InitialScope;
   business?: BusinessContext;
+  createdAt: string;
+  updatedAt: string;
   decisions?: DecisionRecord[];
   checkpoints?: Checkpoint[];
   tests?: TestCase[];
