@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { PathSecurityError, toStructuredError } from '../src/errors/workspace-error.js';
+import {
+  DocumentRevisionConflictError,
+  PathSecurityError,
+  toStructuredError,
+} from '../src/errors/workspace-error.js';
 
 describe('toStructuredError', () => {
   it('serializes known errors with a stable code', () => {
@@ -17,6 +21,15 @@ describe('toStructuredError', () => {
       error: {
         code: 'UNEXPECTED_ERROR',
         message: 'An unexpected error occurred while processing the request.',
+      },
+    });
+  });
+
+  it('serializes approved document lifecycle errors with stable codes', () => {
+    expect(toStructuredError(new DocumentRevisionConflictError('Revision is stale.'))).toEqual({
+      error: {
+        code: 'DOCUMENT_REVISION_CONFLICT',
+        message: 'Revision is stale.',
       },
     });
   });

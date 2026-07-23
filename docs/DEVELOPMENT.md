@@ -23,8 +23,9 @@ source repository; the verified runtime directory is `C:\\WS-Workspace`.
 
 `npm.cmd run smoke` creates and removes a temporary workspace itself. It does
 not require `WS_WORKSPACE_ROOT` and must not be pointed at the real runtime
-workspace. It validates the compiled stdio server through initialization and
-`create_work_item`.
+workspace. It validates the compiled stdio server through initialization,
+`create_work_item`, Milestone 3 document initialization, a controlled read and
+update, AI-context refresh, tool discovery, and absence of absolute paths.
 
 ## IBM Bob runtime configuration
 
@@ -56,6 +57,18 @@ Use strict TypeScript, ES modules and explicit type-only imports. Keep functions
 small and give errors stable codes. Production code must not use console.log
 because stdio stdout is reserved for MCP protocol messages. Prettier controls
 formatting and ESLint enforces code-quality rules.
+
+Keep domain and application-service business logic independent of the MCP
+transport and filesystem implementation. Milestones 4 and 5 retain the current
+local file persistence. The product direction distinguishes a future Core,
+Technology Profiles, and Project Profiles, but none is implemented or defined
+in the current MVP. Do not add remote infrastructure, shared storage,
+synchronization, APIs, databases, profiles, or integrations until a future
+milestone explicitly scopes and approves them.
+
+The completed M1–M3 contracts retain `SalesforceContext`, `developmentAlias`,
+and `rallyId`. Do not present them as already neutral or change them as part of
+an architectural-documentation update.
 
 ## Folder architecture
 
@@ -94,6 +107,21 @@ service validates input and builds document contents; the filesystem layer owns
 safe staging, exclusive file creation, and final promotion into `active/`.
 Tests must use temporary roots, assert that service and MCP responses contain
 no absolute paths, and preserve the Milestone 1 tool behavior.
+
+## Work Item document lifecycle conventions
+
+Keep the MCP adapter thin: it forwards the four approved lifecycle operations
+to `WorkItemDocumentService` and serializes stable errors. Domain and
+application services must not construct paths or access the filesystem;
+`WorkItemDossierRepository` is the only dossier boundary. The current local
+adapter owns containment, staging, logical locks, commits, and recovery.
+
+Document templates and AI-context projection are deterministic. Use the
+injected clock for lifecycle timestamps; tests must supply a fixed clock. A
+mutation must carry a positive expected revision and update the document and
+manifest as one logical repository operation. Do not add generic dossier reads,
+decisions, checkpoints, testing records, closure, archive, reopen, external
+integrations, or central-service behavior under this convention.
 
 ## Adding a document or template
 

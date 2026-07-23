@@ -60,3 +60,28 @@ with `schemaVersion`, `createdAt`, and `updatedAt`. Optional responsibility and
 business records are represented as null in the persisted YAML when absent, so
 the file retains a stable top-level structure without changing their optional
 domain semantics.
+
+## Milestone 3 document lifecycle contracts
+
+`ManagedDocumentType` is a closed enumeration: `MANIFEST`,
+`FUNCTIONAL_ANALYSIS`, `CURRENT_STATE`, `TECHNICAL_ANALYSIS`,
+`IMPACT_ANALYSIS`, `IMPLEMENTATION_PLAN`, and `AI_CONTEXT`. Only the middle
+five analysis types are editable; `AI_CONTEXT` is derived and `MANIFEST` is
+system-managed.
+
+Every managed document has `DocumentLifecycleMetadata` with the document type,
+safe dossier-relative path, lifecycle status (`CREATED`, `INITIALIZED`, or
+`UPDATED`), positive `revision`, ISO `updatedAt`, literal `updatedBy: SYSTEM`,
+and content type (`TEMPLATE`, `SUPPLIED`, or `DERIVED`). `SYSTEM` identifies
+the local lifecycle process, not a person, corporate user, or authentication
+identity.
+
+Each editable document has a closed payload contract. Functional analysis
+accepts functional definition, acceptance criteria, business information,
+related components, development alias, responsibility, and planned dates.
+Current state accepts supplied facts, constraints, and open questions.
+Technical analysis accepts supplied observations, declared hypotheses,
+dependencies, and open questions. Impact analysis accepts affected components,
+supplied impacts, and open questions. Implementation plan accepts supplied
+steps, prerequisites, and open questions. Unknown fields and later-milestone
+records are rejected.

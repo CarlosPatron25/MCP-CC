@@ -2,22 +2,26 @@
 
 ## Vision
 
-WS Workspace MCP is the local working memory for a Salesforce delivery team. It
-will retain a closed, understandable dossier for each item of work so a person
-or development AI can resume it without reconstructing its history.
+WS Workspace MCP is evolving toward a structured knowledge engine for software
+development Work Items. It retains an understandable dossier for each item of
+work so a person or development AI can resume it without reconstructing its
+history. Salesforce and Rally are the first validated use case, not the
+product's permanent technology boundary.
 
 ## Target user
 
-The primary user is a Salesforce developer using IBM Bob while analysing,
-implementing, testing or revisiting a Rally item. Technical leads and reviewers
-are secondary consumers of the resulting documentation.
+The primary user is a developer using IBM Bob while analysing, implementing,
+testing, or revisiting a Work Item. The initially validated user is a Salesforce
+developer working with a Rally reference. Technical leads and reviewers are
+secondary consumers of the resulting documentation.
 
 ## Problem
 
-Rally requests, local analysis, implementation decisions, affected components
-and test evidence otherwise live in disconnected locations or disappear from
-the active conversation. Reopening an item requires rediscovery and increases
-the risk of incomplete changes.
+Work Item requests, local analysis, implementation decisions, affected
+components, and test evidence can otherwise live in disconnected locations or
+disappear from the active conversation. Reopening an item requires rediscovery
+and increases the risk of incomplete changes. The initial implementation keeps
+the Salesforce/Rally vocabulary required by its validated contract.
 
 ## Value proposition
 
@@ -29,16 +33,17 @@ embedding business knowledge in the MCP adapter.
 ## MVP scope
 
 The intended MVP supports exactly four work-item types, local file persistence,
-a document lifecycle, state tracking, safe search and an MCP-first interface
-for IBM Bob.
+a controlled document lifecycle, state tracking and an MCP-first interface for
+IBM Bob.
 
-Milestones 1 and 2 are completed and validated. Milestone 1 provides the
+Milestones 1, 2, and 3 are completed and validated. Milestone 1 provides the
 secure MCP foundation and workspace initialization. Milestone 2 provides safe,
 manual creation of a DRAFT Work Item and its minimum initial dossier through
-`create_work_item`. The delivered dossier contains the persisted Work Item,
-manifest, functional analysis, initial AI context, and evidence and snapshot
-directories. Lifecycle operations, search, and the remaining dossier documents
-are future milestone work.
+`create_work_item`. Milestone 3 completes the approved local context-and-
+document-lifecycle scope: the four remaining analysis documents, controlled
+single-document reads, typed replacement updates, manifest lifecycle metadata,
+and derived AI-context refresh. Search and all state transitions remain future
+milestone work.
 
 ## Outside the MVP
 
@@ -48,10 +53,33 @@ are future milestone work.
 - Automatic access to Salesforce or corporate repositories.
 - Multi-client or remote-host compatibility as a product requirement.
 
+## Future architecture direction
+
+The local-file MVP remains the approved execution architecture through
+Milestones 4 and 5. Product evolution distinguishes a future general WS
+Workspace Core from future Technology Profiles and Project Profiles. A
+Technology Profile may eventually express technology-specific vocabulary and
+conventions; a Project Profile may eventually hold stable, project-wide
+knowledge. Neither has a defined format, persistence mechanism, API, versioning
+model, or loader.
+
+The Project Profile is not a Work Item Dossier. A dossier contains generated,
+updated, and auditable knowledge for one work item; a Project Profile is future
+stable, transversal project knowledge that a dossier may eventually reference.
+
+Sharing, synchronization, corporate folders, internal servers, a Central
+Knowledge Service, APIs, databases, multi-tenancy, SaaS, cloud deployment, and
+enterprise authentication remain unselected future options. They do not change
+the local MVP architecture.
+
 ## Product principles
 
 - Preserve traceability over convenience.
 - Keep the domain independent of IBM Bob.
+- Keep business logic independent of persistence and transport infrastructure.
+- Keep stable project knowledge separate from individual Work Item dossiers.
+- Avoid treating the validated Salesforce/Rally contract as a fictitiously
+  neutral Core.
 - Require explicit workspace authorization before writing.
 - Keep integrations simulated until their contracts are confirmed.
 - Grow one verified milestone at a time.
@@ -62,5 +90,16 @@ Milestones 1 and 2 have verified that an IBM Bob user can run the local server,
 safely initialize an authorized workspace, and create a DRAFT Work Item dossier
 without exposing or modifying files outside that workspace. Manual IBM Bob
 validation also confirmed duplicate protection and preservation of existing
-dossiers. Milestone 3 will extend the dossier progressively; it has not
-started.
+dossiers.
+
+Milestone 3 implemented the approved local document lifecycle and passed both
+automated validation and manual IBM Bob validation on 2026-07-22 (19/19
+tests). The dossier can hold controlled current-state, technical-analysis,
+impact-analysis, and implementation-plan documents; it can also expose one
+approved document at a time, versioned metadata, and derived AI context. The
+milestone is completed; Milestone 4 remains unstarted.
+
+The completed implementation is the valid local base for future Core evolution,
+not a claim that its existing `SalesforceContext`, `developmentAlias`, and
+`rallyId` contracts are already neutral. That neutralization requires an
+explicitly approved future change.

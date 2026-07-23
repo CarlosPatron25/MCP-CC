@@ -3,13 +3,34 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 
 import type { WorkspaceConfig } from '../config/workspace-config.js';
+import { LocalFilesystemWorkItemDossierRepository } from '../filesystem/local-filesystem-work-item-dossier-repository.js';
+import { AIContextProjectionService } from '../services/ai-context-projection-service.js';
+import { SystemClock } from '../services/clock.js';
+import { DocumentTemplateService } from '../services/document-template-service.js';
 import { FoundationService, SERVER_NAME, SERVER_VERSION } from '../services/foundation-service.js';
+import { ManifestLifecycleService } from '../services/manifest-lifecycle-service.js';
 import {
   CREATE_WORK_ITEM_INPUT_SCHEMA,
   WorkItemCreationService,
 } from '../services/work-item-creation-service.js';
+import { WorkItemDocumentService } from '../services/work-item-document-service.js';
 
 const EMPTY_INPUT = z.object({}).strict();
+const INITIALIZE_DOCUMENTS_INPUT = z.object({ workItemId: z.unknown() }).passthrough();
+const GET_DOCUMENT_INPUT = z
+  .object({ workItemId: z.unknown(), documentType: z.unknown() })
+  .passthrough();
+const UPDATE_DOCUMENT_INPUT = z
+  .object({
+    workItemId: z.unknown(),
+    documentType: z.unknown(),
+    expectedRevision: z.unknown(),
+    payload: z.unknown(),
+  })
+  .passthrough();
+const REFRESH_AI_CONTEXT_INPUT = z
+  .object({ workItemId: z.unknown(), expectedRevision: z.unknown() })
+  .passthrough();
 
 function asToolResult(payload: unknown, isError = false) {
   return {
@@ -26,6 +47,12 @@ function asToolResult(payload: unknown, isError = false) {
 export function createMcpServer(config: WorkspaceConfig): McpServer {
   const foundationService = new FoundationService(config);
   const workItemCreationService = new WorkItemCreationService(config);
+  const workItemDocumentService = new WorkItemDocumentService(
+    new LocalFilesystemWorkItemDossierRepository({ workspaceRoot: config.workspaceRoot }),
+    new DocumentTemplateService(),
+    new ManifestLifecycleService(new SystemClock()),
+    new AIContextProjectionService(),
+  );
   const server = new McpServer(
     {
       name: SERVER_NAME,
@@ -33,7 +60,7 @@ export function createMcpServer(config: WorkspaceConfig): McpServer {
     },
     {
       instructions:
-        'WS Workspace MCP provides foundation tools and secure Work Item creation. Do not assume later lifecycle tools exist.',
+        'WS Workspace MCP provides secure local Work Item creation and controlled document lifecycle tools. Do not assume later lifecycle tools exist.',
     },
   );
 
@@ -87,6 +114,70 @@ export function createMcpServer(config: WorkspaceConfig): McpServer {
     async (input) => {
       try {
         return asToolResult(await workItemCreationService.create(input));
+      } catch (error) {
+        return asToolResult(foundationService.serializeError(error), true);
+      }
+    },
+  );
+
+  server.registerTool(
+    'initialize_work_item_documents',
+    {
+      description:
+        'Idempotently create only the four approved missing lifecycle documents for one active Work Item.',
+      inputSchema: INITIALIZE_DOCUMENTS_INPUT,
+    },
+    async (input) => {
+      try {
+        return asToolResult(await workItemDocumentService.initialize(input));
+      } catch (error) {
+        return asToolResult(foundationService.serializeError(error), true);
+      }
+    },
+  );
+
+  server.registerTool(
+    'get_work_item_document',
+    {
+      description:
+        'Return exactly one approved managed Work Item document with safe lifecycle metadata.',
+      inputSchema: GET_DOCUMENT_INPUT,
+    },
+    async (input) => {
+      try {
+        return asToolResult(await workItemDocumentService.getDocument(input));
+      } catch (error) {
+        return asToolResult(foundationService.serializeError(error), true);
+      }
+    },
+  );
+
+  server.registerTool(
+    'update_work_item_document',
+    {
+      description:
+        'Replace one editable initialized document from a typed payload and matching revision.',
+      inputSchema: UPDATE_DOCUMENT_INPUT,
+    },
+    async (input) => {
+      try {
+        return asToolResult(await workItemDocumentService.update(input));
+      } catch (error) {
+        return asToolResult(foundationService.serializeError(error), true);
+      }
+    },
+  );
+
+  server.registerTool(
+    'refresh_ai_context',
+    {
+      description:
+        'Regenerate only derived AI context from approved persisted Work Item dossier facts.',
+      inputSchema: REFRESH_AI_CONTEXT_INPUT,
+    },
+    async (input) => {
+      try {
+        return asToolResult(await workItemDocumentService.refreshAiContext(input));
       } catch (error) {
         return asToolResult(foundationService.serializeError(error), true);
       }

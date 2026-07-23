@@ -35,7 +35,15 @@ export interface ServerCapabilitiesResult {
   schemaVersion: string;
   capabilities: string[];
   availableTools: Array<{
-    name: 'health_check' | 'get_server_capabilities' | 'initialize_workspace' | 'create_work_item';
+    name:
+      | 'health_check'
+      | 'get_server_capabilities'
+      | 'initialize_workspace'
+      | 'create_work_item'
+      | 'initialize_work_item_documents'
+      | 'get_work_item_document'
+      | 'update_work_item_document'
+      | 'refresh_ai_context';
     mutatesFilesystem: boolean;
   }>;
   notImplemented: string[];
@@ -74,12 +82,19 @@ export class FoundationService {
         'secure-workspace-initialization',
         'foundation-work-item-domain-model',
         'secure-work-item-creation',
+        'controlled-document-lifecycle',
+        'document-revision-control',
+        'derived-ai-context-projection',
       ],
       availableTools: [
         { name: 'health_check', mutatesFilesystem: false },
         { name: 'get_server_capabilities', mutatesFilesystem: false },
         { name: 'initialize_workspace', mutatesFilesystem: true },
         { name: 'create_work_item', mutatesFilesystem: true },
+        { name: 'initialize_work_item_documents', mutatesFilesystem: true },
+        { name: 'get_work_item_document', mutatesFilesystem: false },
+        { name: 'update_work_item_document', mutatesFilesystem: true },
+        { name: 'refresh_ai_context', mutatesFilesystem: true },
       ],
       notImplemented: [
         'close_work_item',

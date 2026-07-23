@@ -80,4 +80,52 @@ documents are explicitly deferred to Milestone 3.
   duplicate, preserved the existing dossier, and exposed no absolute path in
   success or error responses.
 
-Milestone 3 has not started.
+## Milestone 3: COMPLETED
+
+Milestone 3 design remains approved and frozen in `MILESTONE_3_DESIGN.md`. The
+approved local implementation is complete and officially closed.
+
+Automated validation passed: `npm.cmd run format`, `npm.cmd run typecheck`,
+`npm.cmd run lint`, `npm.cmd run test` (56 tests), `npm.cmd run build`,
+`npm.cmd run check`, and `npm.cmd run smoke`. The smoke test created and
+removed its own temporary root; it discovered all eight MCP tools and exercised
+document initialization, a controlled read and update, and AI-context refresh
+without touching `C:\\WS-Workspace` or exposing an absolute path.
+
+The server implements exactly four Milestone 3 operations:
+`initialize_work_item_documents`, `get_work_item_document`,
+`update_work_item_document`, and `refresh_ai_context`. It creates the four
+approved lifecycle documents, maintains versioned manifest entries, supports
+typed complete replacements for five editable documents, and derives AI
+context. It retains the Work Item in `DRAFT`; it does not implement decisions,
+checkpoints, testing, closure, archive, reopen, external integrations, or the
+Central Knowledge Service.
+
+Manual IBM Bob validation completed on 2026-07-22 through IBM Bob with
+**19/19 tests passed**. It verified the correct MCP server, all eight tools,
+Milestone 1 and 2 regression behavior, the four Milestone 3 operations,
+idempotency, revision control and conflicts, strict payload validation,
+`AI_CONTEXT` as a protected `DERIVED` document, and the absence of absolute
+paths. All acceptance criteria are satisfied.
+
+The project is ready to begin the design of Milestone 4. Milestone 4 has not
+started.
+
+## Post-Milestone 3 product evolution review
+
+The current architecture remains local and file-based. Milestones 4 and 5 will
+continue to persist Work Item data in the local authorized workspace.
+
+The product direction now distinguishes a future WS Workspace Core, future
+Technology Profiles, and future Project Profiles. M1–M3 are the completed and
+validated local, documentary, and architectural base for that evolution; they
+are not claimed to be a fully neutral Core. Current frozen contracts retain
+`SalesforceContext`, `developmentAlias`, and `rallyId` for the initial
+Salesforce/Rally use case.
+
+A future Project Profile will represent stable, transversal project knowledge;
+a Work Item Dossier remains the generated, updated, and audited record of one
+Work Item. Profiles, shared persistence, synchronization, corporate folders,
+internal servers, a Central Knowledge Service, APIs, databases, multi-tenancy,
+SaaS, cloud deployment, and enterprise authentication are not selected. This
+review does not change M1–M3, start Milestone 4, or alter the local MVP.

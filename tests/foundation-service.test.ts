@@ -41,6 +41,10 @@ describe('FoundationService', () => {
       supportedWorkItemTypes: ['USER_STORY', 'DEFECT', 'INCIDENT', 'TECHNICAL_TASK'],
       availableTools: expect.arrayContaining([
         { name: 'create_work_item', mutatesFilesystem: true },
+        { name: 'initialize_work_item_documents', mutatesFilesystem: true },
+        { name: 'get_work_item_document', mutatesFilesystem: false },
+        { name: 'update_work_item_document', mutatesFilesystem: true },
+        { name: 'refresh_ai_context', mutatesFilesystem: true },
       ]),
       notImplemented: expect.arrayContaining(['close_work_item']),
     });

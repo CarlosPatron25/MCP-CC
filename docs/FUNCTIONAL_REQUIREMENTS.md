@@ -59,9 +59,31 @@ Milestone 2 creates only the minimum initial dossier: `WORK_ITEM.yml`,
 its initial status.
 
 The complete dossier is a product target, not a Milestone 2 requirement.
-Milestone 3 will generate the remaining lifecycle documents progressively.
+Milestone 3 generates the remaining lifecycle documents progressively.
 Closed items will later be moved or copied to `.ws-workspace/archive` through a
 controlled process.
+
+## Milestone 3 document lifecycle
+
+Milestone 3 creates exactly these additional documents for an existing active
+DRAFT Work Item: `02_CURRENT_STATE.md`, `03_TECHNICAL_ANALYSIS.md`,
+`04_IMPACT_ANALYSIS.md`, and `05_IMPLEMENTATION_PLAN.md`. Initialization is
+idempotent after success. It creates only missing approved documents and never
+replaces an unexpected pre-existing file.
+
+The managed lifecycle inventory covers `00_MANIFEST.md`,
+`01_FUNCTIONAL_ANALYSIS.md`, the four new documents, and
+`context/AI_CONTEXT.md`. `WORK_ITEM.yml`, `context/AI_RULES.md`, and
+`context/NEXT_TASK.md` are preserved without modification. The Work Item stays
+in `DRAFT`.
+
+Only the functional analysis, current state, technical analysis, impact
+analysis, and implementation plan are editable. Each replacement requires a
+document-specific typed payload and a matching positive revision. AI context is
+derived only by its refresh operation. Callers cannot provide raw Markdown,
+paths, arbitrary filenames, directories, patches, decisions, checkpoints,
+testing data, closure data, archive data, reopening data, or
+`actualCompletionAt`.
 
 ## Future closure and reopening rules
 

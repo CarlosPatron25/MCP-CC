@@ -27,6 +27,8 @@ All decisions below are approved. Status is Accepted unless later superseded.
 | 19  | Development and validation are incremental.                       | ADR-012 |
 | 20  | The tool never accesses or writes outside its authorized root.    | ADR-012 |
 | 21  | IBM Bob runs the compiled server against a separate runtime root. | ADR-014 |
+| 22  | The MVP remains local; future sharing needs separate approval.    | ADR-015 |
+| 23  | Product layering and deferred future sharing are clarified.       | ADR-016 |
 
 ## ADR-001: Work-item types
 
@@ -152,3 +154,104 @@ builds, and the IBM Bob registration is a confirmed operational contract for
 Milestone 1.
 
 Status: Accepted and verified in Milestone 1.
+
+## ADR-015: Local MVP before centralized knowledge service
+
+Context: The local file-based architecture is the approved implementation for
+the current MVP. The finished product is intended to provide a shared source
+of truth for multiple project developers rather than independent local
+workspaces.
+
+Decision: Keep local file persistence for Milestones 3, 4, and 5. After the
+local MVP, evolve the product through a separately approved initiative toward
+the following target direction:
+
+    IBM Bob -> MCP local -> Central Knowledge Service -> Single Work Item Repository -> Shared Documentation
+
+The Central Knowledge Service will be the future source of truth. Business
+logic must remain decoupled from MCP transport and persistence infrastructure
+to facilitate that future migration.
+
+Consequences: This decision changes no current architecture, behavior,
+milestone scope, persistence mechanism, or external integration. It does not
+authorize the implementation or design of a service contract, API, database,
+deployment, authentication model, or migration plan.
+
+Status: Partially superseded by ADR-016.
+
+Supersession note: ADR-016 supersedes only the part of this ADR that selected a
+Central Knowledge Service as the future approved direction or mandatory source
+of truth. Its historical context and its decision to preserve the local MVP
+remain unchanged.
+
+## ADR-016: Product Layering: Core, Technology Profiles and Project Profiles
+
+Context: WS Workspace MCP completed Milestones 1–3 as a local MCP product
+validated for a Salesforce and Rally use case. Product evolution needs a clear
+general direction without falsely treating those completed contracts as
+technology-neutral or selecting a sharing architecture prematurely.
+
+Problem: The product must distinguish general Work Item knowledge from future
+technology-specific and project-specific knowledge. It must also distinguish
+stable project knowledge from the generated and auditable dossier of one Work
+Item. ADR-015 previously selected a Central Knowledge Service as the approved
+future direction, whereas future sharing and synchronization choices are now
+explicitly open.
+
+Alternatives:
+
+1. Retain Salesforce/Rally as the permanent product identity.
+2. Implement profiles or a sharing architecture immediately.
+3. Establish conceptual product layering, preserve the validated local system,
+   and defer profile and sharing implementation. **Selected.**
+
+Decision: WS Workspace will evolve toward a general WS Workspace Core with
+future Technology Profiles and Project Profiles. The Core direction can own
+general concepts such as Work Item, document, context, manifest, revision,
+decision, checkpoint, evidence, relation, component, functional capability,
+and audit. A Technology Profile is a future reusable, technology-specific
+extension. A Project Profile is future stable, transversal knowledge belonging
+to one project.
+
+The Work Item Dossier remains separate: it is generated, updated, and audited
+around one concrete Work Item. A future dossier may reference Project Profile
+knowledge but must not become the general container for it.
+
+Limits: This ADR defines neither a profile format, schema, API, loading
+mechanism, versioning model, persistence mechanism, nor implementation. It
+does not define Salesforce or Contact Center profiles and does not introduce
+functional project knowledge.
+
+Relation to M1–M3: M1–M3 remain `COMPLETED`, implemented, tested, and
+validated. They form the local, documentary, and architectural base from which
+the Core may evolve. They are not reinterpreted as a fully neutral Core: the
+current frozen contracts explicitly contain `SalesforceContext`,
+`developmentAlias`, and `rallyId` for the initial Salesforce/Rally use case.
+Their neutralization requires a separate approved evolution.
+
+Consequences: The current local filesystem, hexagonal architecture, MCP
+contracts, tests, and validation evidence remain valid and unchanged. The
+product identity becomes technology-independent at the strategic level while
+the implementation documents its remaining dependencies honestly.
+
+Risks: A future contributor may mistake this conceptual direction for an
+implementation mandate, hide current Salesforce/Rally dependencies, or place
+stable project knowledge in dossiers. Documentation and future milestone design
+must keep those boundaries explicit.
+
+Deferred elements: Sharing, synchronization, corporate folders, internal
+servers, a Central Knowledge Service, central APIs, databases, multi-tenancy,
+SaaS, cloud deployment, enterprise authentication, profile formats,
+versioning, persistence, loaders, and onboarding are future options, not
+selected decisions.
+
+ADR-015 relationship: ADR-016 supersedes ADR-015 only where ADR-015 selected a
+Central Knowledge Service as the future approved direction or required source
+of truth. Centralization is not rejected; it is one unselected future option.
+ADR-015's historical motivation and its local-MVP preservation remain intact.
+
+Roadmap impact: Milestone 4 remains limited to its existing decisions,
+checkpoints, and testing scope. This ADR does not start, redesign, or expand
+Milestone 4.
+
+Status: Accepted.

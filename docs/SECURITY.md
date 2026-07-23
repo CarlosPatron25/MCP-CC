@@ -39,6 +39,27 @@ Configuration is validated before server startup. Future MCP inputs must be
 schema-validated before application services use them. Errors return stable
 codes and safe messages, not stack traces or environment dumps.
 
+## Milestone 3 lifecycle protection
+
+Milestone 3 accepts only a safe Work Item ID and a closed document-type
+enumeration; it does not accept a path, glob, filename, or directory request.
+Typed payload schemas are closed and reject unknown fields, including records
+reserved for decisions, testing, closure, archiving, and reopening. Raw
+Markdown and patches are not accepted.
+
+The local repository verifies the active dossier and managed files as contained
+non-symlink filesystem entries. It uses exclusive creation for the four new
+documents, a contained staging directory, and an exclusive logical lock per
+Work Item. A mutation uses the caller's positive expected revision; stale
+revisions leave all files unchanged. Concurrent or retained locks fail safely
+with `DOCUMENT_LIFECYCLE_CONFLICT` rather than exposing lock or staging paths.
+Failed ordinary commits restore the last valid document and manifest and clean
+their staging material.
+
+The lifecycle manifest and all tool responses expose only dossier-relative
+paths. Structured lifecycle errors never include absolute paths, native
+filesystem errors, stack traces, or staging and lock locations.
+
 ## Secrets and sensitive data
 
 Do not commit credentials, tokens, certificates, internal URLs, client data,

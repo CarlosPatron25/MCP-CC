@@ -1,22 +1,40 @@
 # WS Workspace MCP
 
-WS Workspace MCP is a local Model Context Protocol server for IBM Bob. It
-provides the secure foundation for the documented lifecycle of Salesforce-team
-work items from Rally while keeping functional and technical context in a local
-workspace.
+WS Workspace MCP is a local Model Context Protocol server for IBM Bob and the
+initial local foundation for a structured knowledge engine around software
+development Work Items. Its first validated use case is Salesforce work tracked
+through Rally, while its product direction is broader than that initial use
+case.
 
 It addresses the loss of context between analysis, development, testing and a
 later reopening of the same work item. The server is intentionally local and
-file-based in its first milestones. It has no connection to Rally, Copado,
-Salesforce, or corporate systems.
+file-based in its first milestones. It has no external connection to Rally,
+Copado, Salesforce, or corporate systems.
+
+The completed Milestones 1, 2, and 3 are the local, documentary, and
+architectural base from which WS Workspace Core may evolve. They are not yet a
+fully technology-neutral Core: the validated creation contract explicitly
+contains `SalesforceContext`, `developmentAlias`, and `rallyId`. Removing or
+generalizing those dependencies requires a separate approved evolution; it is
+not implied by this product direction.
 
 ## Current state
 
-**Milestone 2 is completed and validated.** Milestone 1 remains completed and validated.
-The server now provides secure creation of an initial DRAFT Work Item dossier,
-in addition to health inspection, capability discovery, and idempotent
-workspace initialization. Work Item lifecycle actions such as closing and
-reopening remain unavailable.
+**Milestone 3 is completed.** Its approved and frozen implementation passed
+automated validation and manual IBM Bob validation on 2026-07-22. Milestones 1,
+2, and 3 are completed and validated.
+
+The server now provides secure creation of an initial DRAFT Work Item dossier
+and its controlled local document lifecycle, in addition to health inspection,
+capability discovery, and idempotent workspace initialization. Closing,
+archiving, reopening, decisions, checkpoints, and structured testing remain
+unavailable.
+
+Milestones 4 and 5 continue to use the current local file-based workspace. The
+product direction distinguishes a future WS Workspace Core, Technology Profiles
+and Project Profiles, without implementing or defining any of them today.
+Sharing, synchronization, corporate folders, internal servers, and a Central
+Knowledge Service remain future options that have not been selected.
 
 ## Requirements
 
@@ -54,9 +72,11 @@ After building, run:
     npm.cmd run smoke
 
 The smoke client creates and removes its own temporary workspace. It starts the
-compiled server through stdio, discovers its tools, then calls `health_check`,
-`get_server_capabilities`, `initialize_workspace`, and `create_work_item`.
-It never uses `C:\\WS-Workspace` or another user workspace for this test.
+compiled server through stdio, discovers all eight tools, initializes a
+workspace, creates a Work Item, initializes the Milestone 3 documents, reads
+and updates one document at its current revision, and refreshes AI context. It
+checks that no absolute temporary-workspace path is returned. It never uses
+`C:\\WS-Workspace` or another user workspace for this test.
 
 ## Create a Work Item
 
@@ -71,8 +91,66 @@ The persisted `id` is a safe internal identifier derived from the Rally ID for
 Milestone 2; `rallyId` preserves the exact user-provided value. The initial
 dossier contains `WORK_ITEM.yml`, `00_MANIFEST.md`,
 `01_FUNCTIONAL_ANALYSIS.md`, the three `context/` files, and empty `evidence/`
-and `snapshots/` directories. Milestone 3 will add the remaining lifecycle
-documents.
+and `snapshots/` directories. Milestone 3 then adds the four controlled
+lifecycle documents and a versioned lifecycle inventory without modifying
+`WORK_ITEM.yml`, `AI_RULES.md`, or `NEXT_TASK.md`.
+
+## Milestone 3 document lifecycle
+
+Milestone 3 adds four MCP tools and no generic dossier-reading operation:
+
+- `initialize_work_item_documents` creates only
+  `02_CURRENT_STATE.md`, `03_TECHNICAL_ANALYSIS.md`,
+  `04_IMPACT_ANALYSIS.md`, and `05_IMPLEMENTATION_PLAN.md`. It is idempotent
+  after successful initialization and never overwrites an unexpected existing
+  file.
+- `get_work_item_document` reads exactly one closed-enumeration document:
+  `MANIFEST`, `FUNCTIONAL_ANALYSIS`, `CURRENT_STATE`,
+  `TECHNICAL_ANALYSIS`, `IMPACT_ANALYSIS`, `IMPLEMENTATION_PLAN`, or
+  `AI_CONTEXT`. It accepts no path or arbitrary filename.
+- `update_work_item_document` replaces one of the five editable documents
+  (`FUNCTIONAL_ANALYSIS` through `IMPLEMENTATION_PLAN`) from its typed payload
+  and a positive `expectedRevision`. It does not accept raw Markdown or
+  patches.
+- `refresh_ai_context` regenerates only `context/AI_CONTEXT.md` from approved
+  persisted Work Item facts, the persisted functional analysis, and lifecycle
+  metadata. It also requires the current AI-context revision.
+
+`00_MANIFEST.md` now retains its original inventory and adds a Document
+Lifecycle Inventory. Each managed document records its relative path, status
+(`CREATED`, `INITIALIZED`, or `UPDATED`), positive revision, timestamp,
+`updatedBy: SYSTEM`, and content type (`TEMPLATE`, `SUPPLIED`, or `DERIVED`).
+Every successful update logically commits the document and manifest together.
+The Work Item remains `DRAFT`.
+
+The local repository owns containment, exclusive per-Work-Item locks, staging,
+revision enforcement, and recovery of ordinary failed commits. A concurrent
+or retained lock returns `DOCUMENT_LIFECYCLE_CONFLICT`; a stale revision returns
+`DOCUMENT_REVISION_CONFLICT`. Responses contain only safe relative paths.
+
+## Milestone 3 automated validation
+
+- The full automated suite reports 56 passing tests, including deterministic
+  templates and AI projection, typed updates for every editable document,
+  manifest revisions, no-overwrite behavior, locks, injected commit failure
+  recovery, filesystem containment, and MCP structured errors.
+- `npm.cmd run format`, `npm.cmd run typecheck`, `npm.cmd run lint`,
+  `npm.cmd run test`, `npm.cmd run build`, `npm.cmd run check`, and
+  `npm.cmd run smoke` have passed for this implementation.
+- The smoke test uses a newly created temporary root and removes it afterwards;
+  it does not touch the configured IBM Bob runtime workspace.
+
+## Milestone 3 manual IBM Bob validation
+
+Manual validation completed on 2026-07-22 through IBM Bob with **19/19 tests
+passed**. It verified the correct server version, discovery of all eight MCP
+tools, Milestone 1 and 2 regression behavior, the four Milestone 3 operations,
+idempotent initialization, revision control and conflicts, strict payload
+validation, protected derived documents, `AI_CONTEXT` as `DERIVED`, and the
+absence of absolute paths. All Milestone 3 acceptance criteria are satisfied.
+
+Milestone 3 is officially closed. The next work is the design of Milestone 4;
+Milestone 4 has not started.
 
 ## Milestone 2 Validation
 
@@ -123,6 +201,23 @@ boundary, and keeps work-item data independent of the server build.
 
 `create_work_item` is intentionally not in `alwaysAllow`; it creates files and
 should remain subject to the host's normal confirmation policy.
+
+## Product evolution direction
+
+The target product direction has three conceptual layers:
+
+- **WS Workspace Core:** general Work Item, document, context, manifest,
+  revision, decision, checkpoint, evidence, relation, component, functional
+  capability, and audit concepts.
+- **Technology Profile:** a future reusable technology-specific extension; a
+  Salesforce profile is only a future example.
+- **Project Profile:** future stable, project-wide knowledge. It is distinct
+  from the generated, updated, and auditable Work Item Dossier.
+
+No profile, loading mechanism, shared persistence, synchronization, service,
+API, database, or central architecture is designed or implemented. See
+[ARCHITECTURE_EVOLUTION_POST_M3.md](docs/ARCHITECTURE_EVOLUTION_POST_M3.md) and
+ADR-016 for the approved boundaries.
 
 ## Milestone 1 Validation
 
