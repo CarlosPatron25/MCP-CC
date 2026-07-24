@@ -32,18 +32,22 @@ Batería de pruebas manuales ejecutada mediante IBM Bob sobre el servidor MCP `w
     "derived-ai-context-projection"
   ],
   "availableTools": [
-    { "name": "health_check",                   "mutatesFilesystem": false },
-    { "name": "get_server_capabilities",         "mutatesFilesystem": false },
-    { "name": "initialize_workspace",            "mutatesFilesystem": true  },
-    { "name": "create_work_item",                "mutatesFilesystem": true  },
-    { "name": "initialize_work_item_documents",  "mutatesFilesystem": true  },
-    { "name": "get_work_item_document",          "mutatesFilesystem": false },
-    { "name": "update_work_item_document",       "mutatesFilesystem": true  },
-    { "name": "refresh_ai_context",              "mutatesFilesystem": true  }
+    { "name": "health_check", "mutatesFilesystem": false },
+    { "name": "get_server_capabilities", "mutatesFilesystem": false },
+    { "name": "initialize_workspace", "mutatesFilesystem": true },
+    { "name": "create_work_item", "mutatesFilesystem": true },
+    { "name": "initialize_work_item_documents", "mutatesFilesystem": true },
+    { "name": "get_work_item_document", "mutatesFilesystem": false },
+    { "name": "update_work_item_document", "mutatesFilesystem": true },
+    { "name": "refresh_ai_context", "mutatesFilesystem": true }
   ],
   "notImplemented": [
-    "close_work_item", "reopen_work_item", "record_decision",
-    "create_checkpoint", "rally-integration", "copado-integration"
+    "close_work_item",
+    "reopen_work_item",
+    "record_decision",
+    "create_checkpoint",
+    "rally-integration",
+    "copado-integration"
   ],
   "supportedWorkItemTypes": ["USER_STORY", "DEFECT", "INCIDENT", "TECHNICAL_TASK"]
 }
@@ -87,16 +91,18 @@ Batería de pruebas manuales ejecutada mediante IBM Bob sobre el servidor MCP `w
 ```json
 {
   "directories": [
-    { "path": ".ws-workspace",          "status": "existing" },
-    { "path": ".ws-workspace\\active",  "status": "existing" },
+    { "path": ".ws-workspace", "status": "existing" },
+    { "path": ".ws-workspace\\active", "status": "existing" },
     { "path": ".ws-workspace\\archive", "status": "existing" },
-    { "path": ".ws-workspace\\config",  "status": "existing" }
+    { "path": ".ws-workspace\\config", "status": "existing" }
   ],
   "readme": { "path": ".ws-workspace\\README.md", "status": "existing" },
   "created": [],
   "existing": [
-    ".ws-workspace", ".ws-workspace\\active",
-    ".ws-workspace\\archive", ".ws-workspace\\config",
+    ".ws-workspace",
+    ".ws-workspace\\active",
+    ".ws-workspace\\archive",
+    ".ws-workspace\\config",
     ".ws-workspace\\README.md"
   ]
 }
@@ -116,8 +122,10 @@ Batería de pruebas manuales ejecutada mediante IBM Bob sobre el servidor MCP `w
 {
   "created": [],
   "existing": [
-    ".ws-workspace", ".ws-workspace\\active",
-    ".ws-workspace\\archive", ".ws-workspace\\config",
+    ".ws-workspace",
+    ".ws-workspace\\active",
+    ".ws-workspace\\archive",
+    ".ws-workspace\\config",
     ".ws-workspace\\README.md"
   ]
 }
@@ -130,6 +138,7 @@ Batería de pruebas manuales ejecutada mediante IBM Bob sobre el servidor MCP `w
 ## Prueba 5 — create_work_item
 
 **Pregunta:** Llama a `create_work_item` con los siguientes datos:
+
 - `type: TECHNICAL_TASK`
 - `rallyId: MANUAL-M3-VALIDATION-001`
 - `title: Validación manual de Milestone 3`
@@ -200,10 +209,34 @@ Batería de pruebas manuales ejecutada mediante IBM Bob sobre el servidor MCP `w
 {
   "workItemId": "MANUAL-M3-VALIDATION-001",
   "created": [
-    { "documentType": "CURRENT_STATE",       "relativePath": "02_CURRENT_STATE.md",       "status": "INITIALIZED", "revision": 1, "contentType": "TEMPLATE" },
-    { "documentType": "TECHNICAL_ANALYSIS",  "relativePath": "03_TECHNICAL_ANALYSIS.md",  "status": "INITIALIZED", "revision": 1, "contentType": "TEMPLATE" },
-    { "documentType": "IMPACT_ANALYSIS",     "relativePath": "04_IMPACT_ANALYSIS.md",     "status": "INITIALIZED", "revision": 1, "contentType": "TEMPLATE" },
-    { "documentType": "IMPLEMENTATION_PLAN", "relativePath": "05_IMPLEMENTATION_PLAN.md", "status": "INITIALIZED", "revision": 1, "contentType": "TEMPLATE" }
+    {
+      "documentType": "CURRENT_STATE",
+      "relativePath": "02_CURRENT_STATE.md",
+      "status": "INITIALIZED",
+      "revision": 1,
+      "contentType": "TEMPLATE"
+    },
+    {
+      "documentType": "TECHNICAL_ANALYSIS",
+      "relativePath": "03_TECHNICAL_ANALYSIS.md",
+      "status": "INITIALIZED",
+      "revision": 1,
+      "contentType": "TEMPLATE"
+    },
+    {
+      "documentType": "IMPACT_ANALYSIS",
+      "relativePath": "04_IMPACT_ANALYSIS.md",
+      "status": "INITIALIZED",
+      "revision": 1,
+      "contentType": "TEMPLATE"
+    },
+    {
+      "documentType": "IMPLEMENTATION_PLAN",
+      "relativePath": "05_IMPLEMENTATION_PLAN.md",
+      "status": "INITIALIZED",
+      "revision": 1,
+      "contentType": "TEMPLATE"
+    }
   ],
   "existing": []
 }
@@ -229,14 +262,14 @@ Batería de pruebas manuales ejecutada mediante IBM Bob sobre el servidor MCP `w
 
 **Metadatos devueltos:**
 
-| Campo | Valor |
-|---|---|
-| `documentType` | `CURRENT_STATE` |
+| Campo          | Valor                 |
+| -------------- | --------------------- |
+| `documentType` | `CURRENT_STATE`       |
 | `relativePath` | `02_CURRENT_STATE.md` |
-| `status` | `INITIALIZED` |
-| `revision` | `1` |
-| `contentType` | `TEMPLATE` |
-| `updatedBy` | `SYSTEM` |
+| `status`       | `INITIALIZED`         |
+| `revision`     | `1`                   |
+| `contentType`  | `TEMPLATE`            |
+| `updatedBy`    | `SYSTEM`              |
 
 **Veredicto:** ✅ PASS — Documento leído correctamente. Contenido generado desde plantilla con los datos del dossier.
 
@@ -245,6 +278,7 @@ Batería de pruebas manuales ejecutada mediante IBM Bob sobre el servidor MCP `w
 ## Prueba 10 — update_work_item_document (revisión correcta)
 
 **Pregunta:** Actualiza el documento `CURRENT_STATE` usando `expectedRevision: 1` con los siguientes datos:
+
 - `knownFacts`: Milestone 3 está implementado y validado automáticamente. / La validación manual se está ejecutando mediante IBM Bob.
 - `constraints`: La persistencia continúa siendo local. / El Work Item debe permanecer en DRAFT.
 - `openQuestions`: Ninguna durante esta validación.
@@ -339,6 +373,7 @@ Batería de pruebas manuales ejecutada mediante IBM Bob sobre el servidor MCP `w
 **Pregunta:** Lee nuevamente `AI_CONTEXT` y confirma su nueva revisión y qué datos persistidos han sido proyectados.
 
 **Resultado:** Revisión `2`, estado `UPDATED`. Nuevas secciones proyectadas respecto a revisión 1:
+
 - `## Work Item` — ahora incluye título, `startedAt` y `plannedCompletionAt`.
 - `## Persisted functional analysis` — proyección completa de `01_FUNCTIONAL_ANALYSIS.md` incluyendo los 3 criterios de aceptación.
 - `## Managed document lifecycle` — tabla con los 7 documentos gestionados y su estado actual.
@@ -426,27 +461,27 @@ Batería de pruebas manuales ejecutada mediante IBM Bob sobre el servidor MCP `w
 
 ## Resultado global
 
-| # | Prueba | Veredicto |
-|---|---|---|
-| 1 | get_server_capabilities | ✅ PASS |
-| 2 | health_check — sin rutas absolutas | ✅ PASS |
-| 3 | initialize_workspace (primera vez) | ✅ PASS |
-| 4 | initialize_workspace (idempotencia) | ✅ PASS |
-| 5 | create_work_item | ✅ PASS |
-| 6 | create_work_item (duplicado rechazado) | ✅ PASS |
-| 7 | initialize_work_item_documents (primera vez) | ✅ PASS |
-| 8 | initialize_work_item_documents (idempotencia) | ✅ PASS |
-| 9 | get_work_item_document — CURRENT_STATE | ✅ PASS |
-| 10 | update_work_item_document — revisión correcta | ✅ PASS |
-| 11 | get_work_item_document — verificación post-update | ✅ PASS |
-| 12 | update_work_item_document — revisión obsoleta rechazada | ✅ PASS |
-| 13 | get_work_item_document — AI_CONTEXT base | ✅ PASS |
-| 14 | refresh_ai_context — revisión correcta | ✅ PASS |
-| 15 | get_work_item_document — AI_CONTEXT actualizado | ✅ PASS |
-| 16 | refresh_ai_context — revisión obsoleta rechazada | ✅ PASS |
-| 17 | get_work_item_document — tipo inexistente rechazado | ✅ PASS |
-| 18 | update_work_item_document — documento derivado rechazado | ✅ PASS |
-| 19 | update_work_item_document — campos extra rechazados | ✅ PASS |
+| #   | Prueba                                                   | Veredicto |
+| --- | -------------------------------------------------------- | --------- |
+| 1   | get_server_capabilities                                  | ✅ PASS   |
+| 2   | health_check — sin rutas absolutas                       | ✅ PASS   |
+| 3   | initialize_workspace (primera vez)                       | ✅ PASS   |
+| 4   | initialize_workspace (idempotencia)                      | ✅ PASS   |
+| 5   | create_work_item                                         | ✅ PASS   |
+| 6   | create_work_item (duplicado rechazado)                   | ✅ PASS   |
+| 7   | initialize_work_item_documents (primera vez)             | ✅ PASS   |
+| 8   | initialize_work_item_documents (idempotencia)            | ✅ PASS   |
+| 9   | get_work_item_document — CURRENT_STATE                   | ✅ PASS   |
+| 10  | update_work_item_document — revisión correcta            | ✅ PASS   |
+| 11  | get_work_item_document — verificación post-update        | ✅ PASS   |
+| 12  | update_work_item_document — revisión obsoleta rechazada  | ✅ PASS   |
+| 13  | get_work_item_document — AI_CONTEXT base                 | ✅ PASS   |
+| 14  | refresh_ai_context — revisión correcta                   | ✅ PASS   |
+| 15  | get_work_item_document — AI_CONTEXT actualizado          | ✅ PASS   |
+| 16  | refresh_ai_context — revisión obsoleta rechazada         | ✅ PASS   |
+| 17  | get_work_item_document — tipo inexistente rechazado      | ✅ PASS   |
+| 18  | update_work_item_document — documento derivado rechazado | ✅ PASS   |
+| 19  | update_work_item_document — campos extra rechazados      | ✅ PASS   |
 
 **19 / 19 pruebas superadas. Milestone 3 validado.**
 
@@ -454,8 +489,8 @@ Batería de pruebas manuales ejecutada mediante IBM Bob sobre el servidor MCP `w
 
 ## Criterios de aceptación — estado final
 
-| Criterio | Estado |
-|---|---|
-| Las cuatro operaciones de Milestone 3 funcionan mediante IBM Bob | ✅ Verificado (pruebas 7, 9, 10, 14) |
-| Las revisiones obsoletas se rechazan | ✅ Verificado (pruebas 12, 16) |
-| Ninguna respuesta expone rutas absolutas | ✅ Verificado (pruebas 2, 6, 12, 16, 17, 18, 19) |
+| Criterio                                                         | Estado                                           |
+| ---------------------------------------------------------------- | ------------------------------------------------ |
+| Las cuatro operaciones de Milestone 3 funcionan mediante IBM Bob | ✅ Verificado (pruebas 7, 9, 10, 14)             |
+| Las revisiones obsoletas se rechazan                             | ✅ Verificado (pruebas 12, 16)                   |
+| Ninguna respuesta expone rutas absolutas                         | ✅ Verificado (pruebas 2, 6, 12, 16, 17, 18, 19) |

@@ -14,8 +14,10 @@ v24.18.0. In PowerShell environments that block `npm.ps1`, use `npm.cmd`.
     npm.cmd run typecheck
     npm.cmd run lint
     npm.cmd run format
+    npm.cmd run format:write
     npm.cmd run test
     npm.cmd run check
+    npm.cmd run smoke
 
 Set WS_WORKSPACE_ROOT to an existing authorized directory before dev or start.
 Build before running start or smoke. Keep this directory separate from the
@@ -25,7 +27,11 @@ source repository; the verified runtime directory is `C:\\WS-Workspace`.
 not require `WS_WORKSPACE_ROOT` and must not be pointed at the real runtime
 workspace. It validates the compiled stdio server through initialization,
 `create_work_item`, Milestone 3 document initialization, a controlled read and
-update, AI-context refresh, tool discovery, and absence of absolute paths.
+update, all seven Milestone 4 operations, all four closed tracking views, an
+exact idempotent retry, a controlled conflict, and explicit AI-context refresh.
+It requires exactly 15 tools, verifies revisions and identifiers, rejects
+absolute-path leakage in all observed results, and confirms temporary-root
+cleanup.
 
 ## IBM Bob runtime configuration
 
@@ -120,8 +126,44 @@ Document templates and AI-context projection are deterministic. Use the
 injected clock for lifecycle timestamps; tests must supply a fixed clock. A
 mutation must carry a positive expected revision and update the document and
 manifest as one logical repository operation. Do not add generic dossier reads,
-decisions, checkpoints, testing records, closure, archive, reopen, external
-integrations, or central-service behavior under this convention.
+closure, archive, reopen, external integrations, or central-service behavior
+under this convention. Decisions, checkpoints, testing records, and evidence
+references belong only to the separate M4 audit-tracking contract; never add
+them to M3's seven document types or typed document payloads.
+
+## Milestone 4 audit-tracking conventions
+
+Keep the seven M4 registrations thin and closed. `WorkItemAuditService` owns the
+use cases; `AuditLedgerService` owns strict normalized records, UUIDv4
+identities, canonical request fingerprints including expected preconditions,
+one global idempotency index, relationships, and separate audit and plan
+revisions. Check an exact retry before rejecting its now-stale original
+revision. Never mutate a prior entry.
+
+A Work Item has at most one logical test plan in M4. New versions append to that
+plan, and executions must reference the active plan revision and one of its test
+case IDs. Evidence input is metadata only: normalize a contained path below
+`evidence/`, but never open, stat, upload, read, or validate the referenced
+file.
+
+The audit repository and M3 dossier repository must use the shared
+`WorkItemOperationCoordinator`. Every M4 mutation commits the ledger, four
+projections, and manifest as one journaled operation. Validate physical
+directory chains, regular files, approved relative paths, hashes, journal
+identity, and owned locks before destructive recovery. Retain unknown or
+unowned material and fail closed.
+
+The M4 manifest block is composed losslessly before the M3 lifecycle block.
+Projections are deterministic and protected. M4 mutations never refresh
+`AI_CONTEXT`; only the explicit M3 refresh can request the bounded M4 summary.
+Do not modify `WORK_ITEM.yml`, status, the M3 document enumeration, closure,
+archive, reopening, profiles, external adapters, or shared infrastructure.
+
+The MCP SDK normally validates a tool schema before application preconditions.
+For M4, keep the published JSON Schema strict while the tested adapter bridge
+passes the raw input to application validation after Work Item, M3, and M4
+initialization checks. This bridge depends on the current SDK behavior and must
+retain its stdio regression tests whenever the SDK is upgraded.
 
 ## Adding a document or template
 

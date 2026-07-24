@@ -11,6 +11,8 @@ import {
   type ManagedDocument,
 } from '../domain/work-item-document.js';
 import {
+  AuditTrackingConflictError,
+  DocumentLifecycleConflictError,
   DocumentNotInitializedError,
   DocumentRevisionConflictError,
   DocumentTypeUnsupportedError,
@@ -139,6 +141,10 @@ export interface UpdateWorkItemDocumentResult {
   document: DocumentMutationResult;
 }
 
+export interface AuditContextSummaryProvider {
+  getContextSummary(workItemId: string): Promise<string | undefined>;
+}
+
 function toValidationError(error: z.ZodError): DocumentValidationError {
   const firstIssue = error.issues[0];
   const field = firstIssue?.path.join('.') || 'input';
@@ -241,6 +247,7 @@ export class WorkItemDocumentService {
     private readonly templates: DocumentTemplateService,
     private readonly manifestLifecycle: ManifestLifecycleService,
     private readonly aiContextProjection: AIContextProjectionService,
+    private readonly auditContextSummaryProvider?: AuditContextSummaryProvider,
   ) {}
 
   public async initialize(input: unknown): Promise<InitializeWorkItemDocumentsResult> {
@@ -380,10 +387,22 @@ export class WorkItemDocumentService {
       }
       return metadata;
     });
+    let auditSummary: string | undefined;
+    try {
+      auditSummary = await this.auditContextSummaryProvider?.getContextSummary(request.workItemId);
+    } catch (error) {
+      if (error instanceof AuditTrackingConflictError) {
+        throw new DocumentLifecycleConflictError(
+          'Another document lifecycle operation is already in progress for this Work Item.',
+        );
+      }
+      throw error;
+    }
     nextAiContext.content = this.aiContextProjection.project(
       workItem,
       functionalAnalysis.content,
       nextLifecycleMetadata,
+      auditSummary,
     );
     const nextManifest = {
       metadata: nextManifestMetadata,

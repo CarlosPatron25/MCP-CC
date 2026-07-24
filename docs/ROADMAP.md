@@ -49,23 +49,51 @@ idempotency, revisions and conflicts, strict payloads, derived AI context, and
 the absence of absolute paths. All Milestone 3 acceptance criteria are
 satisfied.
 
-Milestone 4 has not started. The next work is its design, within the existing
-local file-persistence architecture.
+**Milestone 4 Architecture Challenge: PASSED.** **Milestone 4 Design Review:
+PASSED.** Its formal design is frozen in
+[MILESTONE_4_DESIGN.md](MILESTONE_4_DESIGN.md). Automated implementation
+validation and manual IBM Bob validation have passed.
 
-## Milestone 4: Decisions, Checkpoints and Testing
+## Milestone 4: Decisions, Checkpoints and Testing - COMPLETED
 
-Add auditable decisions, progress checkpoints, test plans and evidence links.
-This milestone continues to use local file persistence.
+The implemented milestone provides auditable decisions, progress checkpoints,
+test plans, executions, and evidence references through local file persistence.
+
+Design status: `FROZEN`. Implementation status: `COMPLETED — FROZEN`.
+
+The implemented scope is exactly seven MCP tools, one schema-versioned
+append-only audit ledger, four protected projections, one losslessly composed
+M4 manifest inventory, global mutation idempotency, separate audit and plan
+revisions, immutable versions of one logical test plan, logical
+non-dereferenced evidence references, a shared M3/M4 Work Item lock, journaled
+multi-file recovery, and explicit bounded AI-context integration.
+
+Automated validation covers 24 test files with 145 passing tests and the
+required format, typecheck, lint, build, combined check, and disposable-root
+smoke commands. The smoke flow discovers exactly 15 tools and exercises all
+seven M4 operations while preserving the M1–M3 baseline. See
+[Pruebas_Milestone_4.md](Pruebas_Milestone_4.md).
+
+Manual IBM Bob validation passed with 42/42 tests, 0 failures, and 0
+non-executable tests. Its three observations were classified as two expected
+strict-validation precedence results and one expected shared-lock concurrency
+conflict. No contractual defect was found. The design, implementation, and
+validation evidence are frozen; Milestone 4 is officially closed.
 
 It does not introduce Technology Profiles, Project Profiles, shared storage,
 synchronization, a Central Knowledge Service, central APIs, databases, or
-multi-tenancy. Its detailed design remains a separate next step.
+multi-tenancy. It also does not implement closing, archiving, reopening, or
+state transitions. Its detailed design is documented in
+[MILESTONE_4_DESIGN.md](MILESTONE_4_DESIGN.md), and the implementation follows
+that frozen contract.
 
 ## Milestone 5: Closing, Archive and Reopening
 
 Implement transition validation, generated actual completion dates, controlled
 archive handling, final reports and auditable reopening.
 This milestone continues to use local file persistence.
+
+Status: not started. This roadmap entry is not a frozen technical contract.
 
 ## Post-MVP architecture options
 

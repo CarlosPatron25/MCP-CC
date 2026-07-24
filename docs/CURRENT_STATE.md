@@ -97,9 +97,9 @@ The server implements exactly four Milestone 3 operations:
 `update_work_item_document`, and `refresh_ai_context`. It creates the four
 approved lifecycle documents, maintains versioned manifest entries, supports
 typed complete replacements for five editable documents, and derives AI
-context. It retains the Work Item in `DRAFT`; it does not implement decisions,
-checkpoints, testing, closure, archive, reopen, external integrations, or the
-Central Knowledge Service.
+context. The M3 contract retains the Work Item in `DRAFT` and does not itself
+define decisions, checkpoints, testing, closure, archive, reopen, external
+integrations, or the Central Knowledge Service.
 
 Manual IBM Bob validation completed on 2026-07-22 through IBM Bob with
 **19/19 tests passed**. It verified the correct MCP server, all eight tools,
@@ -108,16 +108,61 @@ idempotency, revision control and conflicts, strict payload validation,
 `AI_CONTEXT` as a protected `DERIVED` document, and the absence of absolute
 paths. All acceptance criteria are satisfied.
 
-The project is ready to begin the design of Milestone 4. Milestone 4 has not
-started.
+## Milestone 4: COMPLETED
+
+**Milestone 4 Architecture Challenge: PASSED.** **Milestone 4 Design Review:
+PASSED.** Its formal technical design is approved and frozen in
+[MILESTONE_4_DESIGN.md](MILESTONE_4_DESIGN.md).
+
+The implementation exposes exactly seven M4 tools in addition to the eight
+historical M1–M3 tools: `initialize_work_item_tracking`, `record_decision`,
+`record_checkpoint`, `define_test_plan`, `record_test_execution`,
+`register_evidence_reference`, and `get_work_item_tracking`.
+
+The implementation uses `records/AUDIT_LEDGER.json` as schema-versioned,
+append-only source of truth. It derives four protected projections, owns a
+losslessly composed M4 manifest section, applies one global idempotency index,
+distinguishes `auditRevision` from `planRevision`, preserves one logical plan
+with immutable versions, and records logical evidence metadata without
+dereferencing evidence content. M3 and M4 share one physical Work Item lock and
+one journaled multi-file transaction coordinator.
+
+M4 does not modify `WORK_ITEM.yml`, status, the seven-value M3 document
+enumeration, or `get_work_item_document`. It does not implement closure,
+archiving, reopening, profiles, shared persistence, synchronization, or
+external integrations. AI context changes only through the existing explicit
+refresh and receives a deterministic M4 summary bounded to 16 KiB with
+locations and evidence content omitted.
+
+Automated validation passed: format, typecheck, lint, 24 test files with 145
+tests, build, combined check, and the disposable-root smoke flow discovering
+exactly 15 MCP tools. The automated and manual evidence is
+recorded in [Pruebas_Milestone_4.md](Pruebas_Milestone_4.md).
+
+Manual IBM Bob validation passed: 42 tests executed, 42 passed, 0 failed, and
+0 were non-executable. The two observed identifier-error differences are the
+documented distinction between malformed UUID input and a well-formed but
+incompatible or absent identity. The observed `AUDIT_TRACKING_CONFLICT` is the
+expected fail-closed result for concurrent calls under the shared Work Item
+lock. No contractual defect or code change was required.
+
+The authoritative status is:
+
+- `Milestone 4 Design: FROZEN`
+- `Milestone 4 Implementation: COMPLETED — FROZEN`
+- `Milestone 4: COMPLETED`
+
+The design, implementation, automated evidence, and manual IBM Bob evidence are
+frozen. Milestone 4 is officially closed.
 
 ## Post-Milestone 3 product evolution review
 
-The current architecture remains local and file-based. Milestones 4 and 5 will
-continue to persist Work Item data in the local authorized workspace.
+The current architecture remains local and file-based. Milestone 4 persists
+Work Item data in the local authorized workspace. Milestone 5 remains future,
+unimplemented, and not started by this work.
 
 The product direction now distinguishes a future WS Workspace Core, future
-Technology Profiles, and future Project Profiles. M1–M3 are the completed and
+Technology Profiles, and future Project Profiles. M1–M4 are the completed and
 validated local, documentary, and architectural base for that evolution; they
 are not claimed to be a fully neutral Core. Current frozen contracts retain
 `SalesforceContext`, `developmentAlias`, and `rallyId` for the initial
@@ -128,4 +173,5 @@ a Work Item Dossier remains the generated, updated, and audited record of one
 Work Item. Profiles, shared persistence, synchronization, corporate folders,
 internal servers, a Central Knowledge Service, APIs, databases, multi-tenancy,
 SaaS, cloud deployment, and enterprise authentication are not selected. This
-review does not change M1–M3, start Milestone 4, or alter the local MVP.
+review does not change M1–M3, expand the implemented Milestone 4 contract,
+start or define Milestone 5, or alter the local MVP.

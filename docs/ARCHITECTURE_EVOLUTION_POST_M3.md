@@ -7,12 +7,15 @@ Milestone 3. It clarifies product identity and future conceptual boundaries
 without changing the validated local MVP, its code, its MCP contracts, or its
 historical evidence.
 
-## Current validated base
+## Validated base at the time of review
 
 Milestones 1, 2, and 3 are `COMPLETED`. They provide the local MCP foundation,
 safe Work Item creation, and controlled document lifecycle. The local
 filesystem remains the sole authorized persistence mechanism, and the existing
 hexagonal architecture remains in force.
+
+Milestone 4 was subsequently completed and officially closed under its own
+frozen design after automated and manual IBM Bob validation passed.
 
 These milestones are the local, documentary, and architectural base from which
 WS Workspace Core may evolve. They are not a fully neutral Core already: the
@@ -59,10 +62,11 @@ centralization.
 
 ## Milestone impact
 
-This review does not reopen or modify M1–M3. It does not alter the scope of
-Milestone 4, which remains unstarted and subject to a separate design review.
-Technology Profiles, Project Profiles, and sharing architecture are not part of
-Milestone 4 under the current roadmap.
+This review does not reopen or modify M1–M3. At the time of this review,
+Milestone 4 was unstarted and subject to a separate design review. Milestone 4
+has since been designed, implemented, validated, and officially closed under
+its own frozen contract. Technology Profiles, Project Profiles, and sharing
+architecture were not part of Milestone 4 and remain unimplemented.
 
 ## Authority
 

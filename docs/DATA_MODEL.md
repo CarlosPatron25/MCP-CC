@@ -1,9 +1,8 @@
 # Data model
 
-The following contracts establish names and ownership before the lifecycle is
-implemented. Required fields are marked Required, nullable user choices are
-Optional, values set by the system are Generated, and later lifecycle fields
-are Future.
+The following contracts describe the implemented local M1–M4 model. Required
+fields are marked Required, nullable user choices are Optional, values set by
+the system are Generated, and later lifecycle fields are Future.
 
 ## WorkItem
 
@@ -20,7 +19,8 @@ are Future.
 - business: Optional BusinessContext.
 - createdAt: Generated ISO timestamp at creation.
 - updatedAt: Generated ISO timestamp, initially equal to createdAt.
-- decisions, checkpoints, tests: Future collections.
+- decisions, checkpoints, tests: not fields of `WorkItem` or `WORK_ITEM.yml`;
+  M4 owns separate append-only audit records.
 
 ## Enumerations
 
@@ -42,18 +42,18 @@ is not accepted at creation and remains generated only by future closure work.
 
 ## Supporting records
 
-| Contract               | Required fields                        | Optional fields       | Generated or future fields    |
-| ---------------------- | -------------------------------------- | --------------------- | ----------------------------- |
-| WorkItemDates          | startedAt                              | plannedCompletionAt   | actualCompletionAt on close   |
-| WorkItemResponsibility | none                                   | responsiblePerson     | future ownership history      |
-| SalesforceContext      | developmentAlias                       | sandboxName           | future org metadata           |
-| FunctionalContext      | definition                             | acceptanceCriteria    | future refined context        |
-| InitialScope           | relatedComponents                      | none                  | future discovered components  |
-| BusinessContext        | none                                   | additionalInformation | future stakeholder data       |
-| DecisionRecord         | id, title, decision, decidedAt         | rationale             | future alternatives and links |
-| Checkpoint             | id, recordedAt, summary                | author                | future structured progress    |
-| TestCase               | id, title, result                      | evidenceReferences    | future execution detail       |
-| WorkItemManifest       | schemaVersion, workItemId, generatedAt | none                  | future document inventory     |
+| Contract               | Required fields                        | Optional fields       | Generated or future fields   |
+| ---------------------- | -------------------------------------- | --------------------- | ---------------------------- |
+| WorkItemDates          | startedAt                              | plannedCompletionAt   | actualCompletionAt on close  |
+| WorkItemResponsibility | none                                   | responsiblePerson     | future ownership history     |
+| SalesforceContext      | developmentAlias                       | sandboxName           | future org metadata          |
+| FunctionalContext      | definition                             | acceptanceCriteria    | future refined context       |
+| InitialScope           | relatedComponents                      | none                  | future discovered components |
+| BusinessContext        | none                                   | additionalInformation | future stakeholder data      |
+| DecisionRecord         | historical placeholder only            | none                  | superseded by the M4 ledger  |
+| Checkpoint             | historical placeholder only            | none                  | superseded by the M4 ledger  |
+| TestCase               | historical placeholder only            | none                  | superseded by the M4 ledger  |
+| WorkItemManifest       | schemaVersion, workItemId, generatedAt | none                  | future document inventory    |
 
 Milestone 2 persists the initial `WorkItem` fields in `WORK_ITEM.yml`, together
 with `schemaVersion`, `createdAt`, and `updatedAt`. Optional responsibility and
@@ -85,3 +85,70 @@ dependencies, and open questions. Impact analysis accepts affected components,
 supplied impacts, and open questions. Implementation plan accepts supplied
 steps, prerequisites, and open questions. Unknown fields and later-milestone
 records are rejected.
+
+## Milestone 4 audit ledger
+
+`records/AUDIT_LEDGER.json` is the M4 structured source of truth and begins at
+`schemaVersion: "1.0.0"`. The initialized ledger has `revision: 0`; each
+confirmed append advances the global audit revision by one and updates
+`updatedAt` through the injected clock. Its arrays preserve append order:
+`decisions`, `checkpoints`, `testPlans`, `testExecutions`,
+`evidenceReferences`, and `idempotencyIndex`.
+
+All entry, plan, test-case, and evidence identifiers are server-generated
+UUIDv4 values. Every mutation supplies one globally unique idempotency key. The
+index stores that key, operation, resulting entry ID, and canonical SHA-256
+fingerprint of the normalized request including its expected preconditions. An
+exact retry returns the original confirmed result before stale-revision checks;
+a key reused by another operation or payload is a conflict.
+
+### Audit entries
+
+- `Decision`: `id`, `idempotencyKey`, `kind`, `title`, `decision`,
+  `rationale`, `declaredActor`, `recordedAt`, optional
+  `relatedDecisionId`, and optional `evidenceReferenceIds`. Kinds are
+  `DECISION`, `CORRECTION`, `SUPERSESSION`, and `WITHDRAWAL`.
+- `Checkpoint`: `id`, `idempotencyKey`, `kind`, `summary`,
+  `declaredActor`, `recordedAt`, optional `correctsCheckpointId`, optional
+  `relatedDecisionIds`, and optional `evidenceReferenceIds`. Kinds are
+  `PROGRESS`, `RISK`, `BLOCKER`, and `HANDOFF`.
+- `TestPlanVersion`: immutable version-entry `id`, the one logical `planId`,
+  positive `planRevision`, `idempotencyKey`, `purpose`, `declaredActor`,
+  `recordedAt`, and one or more test cases.
+- `TestCaseDefinition`: server-generated `testCaseId`, `title`, `objective`,
+  `verificationMethod` (`MANUAL` or `AUTOMATED`), and `expectedOutcome`.
+- `TestExecution`: `id`, `idempotencyKey`, `planId`, `planRevision`,
+  `testCaseId`, `executionMethod`, `outcome`, `summary`, `declaredActor`,
+  `recordedAt`, and optional `evidenceReferenceIds`. Outcomes are `PASSED`,
+  `FAILED`, and `BLOCKED`.
+- `EvidenceReference`: `id`, `idempotencyKey`, `label`, optional
+  `description`, normalized `logicalPath`, `declaredActor`, and `recordedAt`.
+
+A Work Item has no more than one logical plan in M4. Versions share its
+generated `planId`; the highest `planRevision` is active. An execution must
+target that exact active revision and a case defined by it. Earlier versions
+and executions remain immutable history.
+
+Evidence paths use forward slashes, begin below `evidence/`, contain no empty,
+`.` or `..` segments, and are unique after normalization. They are logical
+labels only; the model makes no assertion about file existence or contents.
+All audit text rejects absolute filesystem locations and URL-style locations
+before persistence.
+
+### Projections and manifest
+
+`TrackingType` is exactly `DECISIONS`, `CHECKPOINTS`, `TESTING`, or
+`EVIDENCE_REFERENCES`. These map respectively to `06_DECISIONS.md`,
+`07_CHECKPOINTS.md`, `08_TEST_PLAN.md`, and `evidence/REFERENCES.md`. The
+Markdown files are deterministic protected projections of the ledger.
+
+`00_MANIFEST.md` has one M4-owned Audit Inventory before the historical
+seven-row M3 lifecycle inventory. The M4 block records schema and audit
+revision plus artifact revisions and counters; it does not extend
+`ManagedDocumentType`. M4 manifest changes advance only the existing M3
+`MANIFEST` lifecycle row.
+
+The optional M4 part of `AI_CONTEXT` is also derived, but only during an
+explicit refresh. It contains selected current audit facts, excludes physical
+and logical locations and evidence content, and is bounded to 16 KiB by
+complete semantic units.

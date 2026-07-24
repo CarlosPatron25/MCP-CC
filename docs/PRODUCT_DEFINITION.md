@@ -36,14 +36,18 @@ The intended MVP supports exactly four work-item types, local file persistence,
 a controlled document lifecycle, state tracking and an MCP-first interface for
 IBM Bob.
 
-Milestones 1, 2, and 3 are completed and validated. Milestone 1 provides the
+Milestones 1 through 4 are completed and validated. Milestone 1 provides the
 secure MCP foundation and workspace initialization. Milestone 2 provides safe,
 manual creation of a DRAFT Work Item and its minimum initial dossier through
 `create_work_item`. Milestone 3 completes the approved local context-and-
 document-lifecycle scope: the four remaining analysis documents, controlled
 single-document reads, typed replacement updates, manifest lifecycle metadata,
-and derived AI-context refresh. Search and all state transitions remain future
-milestone work.
+and derived AI-context refresh. Milestone 4 implements local append-only
+decisions and checkpoints, immutable test-plan versions and executions,
+controlled evidence references, deterministic audit projections, and explicit
+bounded AI-context integration. Its automated validation and manual IBM Bob
+validation have passed, and Milestone 4 is completed. Search and all state
+transitions remain future milestone work.
 
 ## Outside the MVP
 
@@ -97,9 +101,25 @@ automated validation and manual IBM Bob validation on 2026-07-22 (19/19
 tests). The dossier can hold controlled current-state, technical-analysis,
 impact-analysis, and implementation-plan documents; it can also expose one
 approved document at a time, versioned metadata, and derived AI context. The
-milestone is completed; Milestone 4 remains unstarted.
+milestone is completed.
 
-The completed implementation is the valid local base for future Core evolution,
-not a claim that its existing `SalesforceContext`, `developmentAlias`, and
-`rallyId` contracts are already neutral. That neutralization requires an
-explicitly approved future change.
+**Milestone 4 Architecture Challenge: PASSED.** **Milestone 4 Design Review:
+PASSED.** Its formal design is frozen in
+[MILESTONE_4_DESIGN.md](MILESTONE_4_DESIGN.md). The implementation exposes
+exactly seven approved M4 operations backed by a schema-versioned append-only
+ledger, protected projections, global idempotency, revision checks, shared
+locking, and journaled multi-file persistence. It preserves `WORK_ITEM.yml`,
+status, and all M3 contracts.
+
+Automated validation passed with 24 test files and 145 tests plus the complete
+format, typecheck, lint, build, combined-check, and disposable-root smoke
+workflow. Manual IBM Bob validation passed with 42/42 tests, 0 failures, and 0
+non-executable tests. The three observations were resolved as contract-valid
+validation precedence and shared-lock behavior, without code changes.
+
+The completed M1–M4 foundation is the valid local
+base for future Core evolution, not a claim that the existing
+`SalesforceContext`, `developmentAlias`, and `rallyId` contracts are already
+neutral. The M4 design and implementation are frozen and Milestone 4 is
+officially closed. Contract neutralization requires an explicitly approved
+future change.

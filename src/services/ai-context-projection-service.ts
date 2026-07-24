@@ -21,12 +21,13 @@ export class AIContextProjectionService {
     workItem: WorkItem,
     functionalAnalysis: string,
     lifecycleMetadata: readonly DocumentLifecycleMetadata[],
+    auditSummary?: string,
   ): string {
     const inventory = [...lifecycleMetadata].sort((left, right) =>
       left.relativePath.localeCompare(right.relativePath),
     );
 
-    return [
+    const m3Projection = [
       '# AI Context',
       '',
       '## Work Item',
@@ -57,5 +58,9 @@ export class AIContextProjectionService {
       ),
       '',
     ].join('\n');
+    if (auditSummary === undefined) {
+      return m3Projection;
+    }
+    return `${m3Projection.trimEnd()}\n\n${auditSummary.trim()}\n`;
   }
 }

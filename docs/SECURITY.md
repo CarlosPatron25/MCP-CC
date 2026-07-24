@@ -35,9 +35,12 @@ workspace paths, never absolute filesystem paths.
 
 ## Inputs and errors
 
-Configuration is validated before server startup. Future MCP inputs must be
-schema-validated before application services use them. Errors return stable
-codes and safe messages, not stack traces or environment dumps.
+Configuration is validated before server startup. Implemented MCP tools publish
+closed schemas and reject unknown fields. M4 performs complete payload
+validation inside the application boundary after the active Work Item, M3
+lifecycle, and M4 initialization/integrity preconditions, preserving historical
+error precedence. Errors return stable codes and safe messages, not stack
+traces or environment dumps.
 
 ## Milestone 3 lifecycle protection
 
@@ -60,6 +63,46 @@ The lifecycle manifest and all tool responses expose only dossier-relative
 paths. Structured lifecycle errors never include absolute paths, native
 filesystem errors, stack traces, or staging and lock locations.
 
+## Milestone 4 audit protection
+
+M4 accepts only the seven closed audit operations and four closed tracking
+views. It accepts no arbitrary path, filename, glob, raw ledger JSON, raw
+Markdown, patch, or directory request. All audit text is normalized and rejects
+absolute filesystem or URL-style locations before persistence. Evidence
+registration accepts one normalized logical label below `evidence/`; it never
+opens, stats, uploads, reads, follows, or validates the referenced file.
+
+The append-only ledger is parsed strictly at schema `1.0.0`. UUIDv4 identities,
+canonical fingerprints, a global idempotency index, immutable relations, and
+separate audit and plan revisions prevent ambiguous replay or partial logical
+updates. A stale or incompatible request writes nothing. Projections are
+deterministic and protected; inconsistent ledger, index, projection, or
+manifest state fails closed.
+
+M3 and M4 share one per-Work-Item exclusion boundary. Lock and recovery-claim
+files carry process and ownership tokens; release compares physical file
+identity as well as content and never deletes an unowned replacement. The
+multi-file journal is immutable, progress records are append-only, and a commit
+marker is written atomically. Rollback and abandoned-transaction recovery
+validate approved relative paths, UUID transaction identity, hashes, regular
+files, and every physical directory parent. Symlinks, junctions, unexpected
+repair content, malformed journals, unknown locks, and inconsistent backups are
+retained and rejected rather than followed or removed.
+
+The explicit AI-context refresh includes at most 16 KiB of M4 summary by
+complete semantic units. It omits filesystem and logical paths, URLs, evidence
+descriptions, and evidence content. M4 mutations never refresh AI context
+automatically.
+
+The logical lock coordinates server instances and other cooperative writers. A
+separate process with the same operating-system permissions can still attempt a
+check/use race against local files; Node.js does not expose portable `openat`
+and `renameat` primitives for an entirely descriptor-relative transaction.
+Dedicated directory permissions remain required. The implementation repeatedly
+validates physical identities and retains a live claim during lock release to
+detect tampering and fail closed, but it does not claim protection from a fully
+privileged hostile local process.
+
 ## Secrets and sensitive data
 
 Do not commit credentials, tokens, certificates, internal URLs, client data,
@@ -72,7 +115,7 @@ document contents.
 Run the server with the least-privileged local account practical. Choose a
 dedicated empty directory as WS_WORKSPACE_ROOT, not a filesystem root and not a
 corporate repository. The process needs no network listener or external service
-credential in Milestone 1.
+credential in the implemented M1–M4 scope.
 
 ## Verified IBM Bob boundary
 

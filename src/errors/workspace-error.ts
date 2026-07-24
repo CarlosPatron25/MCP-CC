@@ -15,7 +15,19 @@ export type WorkspaceErrorCode =
   | 'DOCUMENT_REVISION_CONFLICT'
   | 'DOCUMENT_LIFECYCLE_CONFLICT'
   | 'DOCUMENT_UPDATE_FAILED'
-  | 'MANIFEST_UPDATE_FAILED';
+  | 'MANIFEST_UPDATE_FAILED'
+  | 'AUDIT_TRACKING_NOT_INITIALIZED'
+  | 'AUDIT_ENTRY_VALIDATION_FAILED'
+  | 'AUDIT_IDEMPOTENCY_CONFLICT'
+  | 'AUDIT_REVISION_CONFLICT'
+  | 'TEST_PLAN_REVISION_CONFLICT'
+  | 'TEST_PLAN_CONFLICT'
+  | 'AUDIT_ENTRY_NOT_FOUND'
+  | 'TEST_CASE_NOT_FOUND'
+  | 'EVIDENCE_REFERENCE_DUPLICATE'
+  | 'AUDIT_TRACKING_CONFLICT'
+  | 'AUDIT_LEDGER_CORRUPT'
+  | 'AUDIT_TRACKING_UPDATE_FAILED';
 
 export interface StructuredError {
   error: {
@@ -152,6 +164,90 @@ export class ManifestUpdateError extends WorkspaceError {
   public constructor(message: string, details?: Record<string, string>) {
     super('MANIFEST_UPDATE_FAILED', message, details);
     this.name = 'ManifestUpdateError';
+  }
+}
+
+export class AuditTrackingNotInitializedError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('AUDIT_TRACKING_NOT_INITIALIZED', message, details);
+    this.name = 'AuditTrackingNotInitializedError';
+  }
+}
+
+export class AuditEntryValidationError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('AUDIT_ENTRY_VALIDATION_FAILED', message, details);
+    this.name = 'AuditEntryValidationError';
+  }
+}
+
+export class AuditIdempotencyConflictError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('AUDIT_IDEMPOTENCY_CONFLICT', message, details);
+    this.name = 'AuditIdempotencyConflictError';
+  }
+}
+
+export class AuditRevisionConflictError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('AUDIT_REVISION_CONFLICT', message, details);
+    this.name = 'AuditRevisionConflictError';
+  }
+}
+
+export class TestPlanRevisionConflictError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('TEST_PLAN_REVISION_CONFLICT', message, details);
+    this.name = 'TestPlanRevisionConflictError';
+  }
+}
+
+export class TestPlanConflictError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('TEST_PLAN_CONFLICT', message, details);
+    this.name = 'TestPlanConflictError';
+  }
+}
+
+export class AuditEntryNotFoundError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('AUDIT_ENTRY_NOT_FOUND', message, details);
+    this.name = 'AuditEntryNotFoundError';
+  }
+}
+
+export class TestCaseNotFoundError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('TEST_CASE_NOT_FOUND', message, details);
+    this.name = 'TestCaseNotFoundError';
+  }
+}
+
+export class EvidenceReferenceDuplicateError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('EVIDENCE_REFERENCE_DUPLICATE', message, details);
+    this.name = 'EvidenceReferenceDuplicateError';
+  }
+}
+
+export class AuditTrackingConflictError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('AUDIT_TRACKING_CONFLICT', message, details);
+    this.name = 'AuditTrackingConflictError';
+  }
+}
+
+export class AuditLedgerCorruptError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('AUDIT_LEDGER_CORRUPT', message, details);
+    this.name = 'AuditLedgerCorruptError';
+  }
+}
+
+export class AuditTrackingUpdateError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('AUDIT_TRACKING_UPDATE_FAILED', message, details);
+    this.name = 'AuditTrackingUpdateError';
   }
 }
 

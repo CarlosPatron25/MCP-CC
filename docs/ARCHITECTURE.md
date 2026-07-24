@@ -66,8 +66,8 @@ updated, and audited around one Work Item. A future dossier may reference a
 Project Profile, but it must not become the general container of stable project
 knowledge.
 
-The current M1–M3 implementation is the validated local base from which a Core
-may evolve; it is not already technology-neutral. Its current contracts include
+The completed M1–M4 foundation is the local base from which a Core may evolve;
+it is not already technology-neutral. Its current contracts include
 `SalesforceContext`, `developmentAlias`, and `rallyId` for the first Salesforce
 and Rally use case. Their future neutralization requires separate approval and
 must not alter completed milestone evidence retroactively.
@@ -80,15 +80,19 @@ persistence mechanism for the MVP.
 
 ## Components
 
-- domain: current Work Item vocabulary plus closed Milestone 3 document types,
-  lifecycle metadata, revisions, content types, and typed payload contracts.
-  Current contracts retain explicit Salesforce/Rally dependencies.
+- domain: current Work Item vocabulary, closed Milestone 3 document types and
+  lifecycle contracts, plus the M4 audit ledger, entries, closed tracking views,
+  revisions, and typed request contracts. Current contracts retain explicit
+  Salesforce/Rally dependencies.
 - config: resolution and verification of the explicit authorized root.
 - filesystem: containment-safe path resolution, workspace initialization,
-  dossier staging, locking, and the local dossier-repository adapter.
+  dossier staging, the local dossier and audit adapters, and one shared
+  Work-Item operation coordinator for physical locking, transaction journals,
+  promotion, rollback, and recovery.
 - services: reusable use cases, including Work Item validation, deterministic
-  document templates, manifest lifecycle rendering, AI-context projection, and
-  document lifecycle coordination.
+  document templates, manifest lifecycle rendering, AI-context projection,
+  document lifecycle coordination, audit-ledger integrity, deterministic audit
+  projections, M4 manifest inventory, and bounded audit-context summaries.
 - mcp: thin registrations that convert service results and errors to tool
   results.
 - scripts: an MCP stdio smoke client used for local technical verification.
@@ -172,6 +176,60 @@ The MCP adapter registers only `initialize_work_item_documents`,
 rules to the services; no complete-dossier or generic directory-read operation
 exists.
 
+## Milestone 4 audit tracking
+
+Milestone 4 implements a separate hexagonal flow without extending the M3
+managed-document contract:
+
+    MCP adapter
+       |
+       v
+    WorkItemAuditService
+       |
+       v
+    WorkItemAuditRepository port
+       |
+       v
+    LocalFilesystemWorkItemAuditRepository
+
+`records/AUDIT_LEDGER.json` is the schema-versioned structured source of truth.
+`AuditLedgerService` owns strict parsing, canonical fingerprints, the global
+idempotency index, relationships, server-generated UUIDv4 identifiers, the
+ledger-wide audit revision, and plan revisions. `AuditProjectionService`
+deterministically derives `06_DECISIONS.md`, `07_CHECKPOINTS.md`,
+`08_TEST_PLAN.md`, and `evidence/REFERENCES.md`; those files are protected
+views, not independent sources.
+
+`ManifestSectionCompositor` preserves every byte outside an owned section,
+supports LF and CRLF, keeps the M4 block before the historical M3 block, and
+strictly validates the seven-row M3 lifecycle inventory before M4 behavior.
+`M4ManifestInventoryService` owns only the audit inventory. Alternating M3 and
+M4 updates therefore retain both contracts while only the M3 `MANIFEST` row
+advances for M4 manifest changes.
+
+The dossier and audit repositories share `WorkItemOperationCoordinator` and
+the same `.locks/<workItemId>.lifecycle.lock` exclusion boundary. Each real M4
+mutation stages the ledger, four projections, and manifest together. The
+immutable journal records approved relative paths and before/after hashes;
+rollback and later recovery validate the journal, regular-file identities,
+physical non-link directory chains, and lock ownership before moving or
+removing data. A commit marker makes confirmation irreversible. Retained or
+unowned locks fail closed.
+
+Application validation preserves the required order: active Work Item, valid M3
+lifecycle, M4 initialization/integrity, then strict M4 payload, relationships,
+idempotency, and revisions. The published MCP JSON Schemas remain closed with
+`additionalProperties: false`; a small adapter bridge defers complete M4
+payload validation to the application boundary so the SDK cannot mask the
+historical initialization errors.
+
+One logical test plan may have immutable versions; executions target only the
+active version. Evidence references are normalized logical metadata and are
+never dereferenced. M4 mutations never change `WORK_ITEM.yml`, status, or
+`AI_CONTEXT`. Only `refresh_ai_context` can include the deterministic M4
+summary, which is semantically truncated to 16 KiB and excludes filesystem
+locations, URLs, and evidence content.
+
 ## Configuration
 
 Configuration comes only from `WS_WORKSPACE_ROOT`; IBM Bob supplies that normal
@@ -200,6 +258,12 @@ structure as an error tool result; it does not leak stack traces.
 
 Unit tests use temporary directories to cover root validation, containment,
 initialization, no-overwrite behavior, service responses and structured errors.
-The compiled smoke client is an additional protocol-level technical check.
+The M4 suite also covers append-only integrity, exact retries, conflicts,
+manifest alternation and CRLF, protected projections, path and URL rejection,
+symlink/junction defense, shared-lock ownership, multi-file failure injection,
+rollback, and abandoned-journal recovery. The compiled smoke client is an
+additional protocol-level check that discovers exactly 15 tools and exercises
+the complete M1–M4 flow in a disposable root without returning an absolute
+path.
 Milestone 1 also verified the compiled server under IBM Bob's real stdio MCP
 registration, including tool invocation and runtime-root propagation.

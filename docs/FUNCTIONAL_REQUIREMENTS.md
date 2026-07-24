@@ -7,7 +7,7 @@ TECHNICAL_TASK. No additional type is implied by this list.
 
 ## Creation data
 
-Required data for a future work-item creation tool:
+Required data for the implemented Milestone 2 `create_work_item` tool:
 
 - Work-item type.
 - Rally ID.
@@ -37,11 +37,12 @@ the Work Item directory.
 
 The planned states are DRAFT, ANALYSIS, PLANNED, DEVELOPMENT, TESTING,
 READY_FOR_REVIEW, CLOSED, BLOCKED, REOPENED and CANCELLED. Completed Milestone
-1 defines the vocabulary and initial rules only; it does not expose a
-transition tool or full state machine. A new item will start in DRAFT, CLOSED will require the
-future closure evidence, and REOPENED will be allowed only after a recorded
-closure. BLOCKED and CANCELLED must retain the reason as a future auditable
-checkpoint or decision.
+1 defines the vocabulary and initial rules only; M1–M4 expose no transition
+tool or full state machine. A new item starts in DRAFT and remains there during
+the implemented M2–M4 operations. CLOSED will require future closure evidence,
+and REOPENED will be allowed only after a recorded closure. BLOCKED and
+CANCELLED must retain their reasons in separately approved future transition
+work; an M4 `BLOCKER` checkpoint does not change status.
 
 ## Expected lifecycle
 
@@ -83,7 +84,49 @@ document-specific typed payload and a matching positive revision. AI context is
 derived only by its refresh operation. Callers cannot provide raw Markdown,
 paths, arbitrary filenames, directories, patches, decisions, checkpoints,
 testing data, closure data, archive data, reopening data, or
-`actualCompletionAt`.
+`actualCompletionAt` through an M3 document payload. Decisions, checkpoints,
+testing records, and evidence references are accepted only through the separate
+M4 audit-tracking operations.
+
+## Milestone 4 decisions, checkpoints, testing, and evidence references
+
+M4 applies only to an existing active Work Item with a valid initialized M3
+document lifecycle. `initialize_work_item_tracking` idempotently creates
+`records/AUDIT_LEDGER.json`, `06_DECISIONS.md`, `07_CHECKPOINTS.md`,
+`08_TEST_PLAN.md`, `evidence/REFERENCES.md`, and one M4-owned manifest section
+as a single logical commit.
+
+The other mutating operations are `record_decision`, `record_checkpoint`,
+`define_test_plan`, `record_test_execution`, and
+`register_evidence_reference`. `get_work_item_tracking` reads exactly one of
+`DECISIONS`, `CHECKPOINTS`, `TESTING`, or `EVIDENCE_REFERENCES`; it accepts no
+path or arbitrary file name.
+
+All real records are immutable append-only entries with server-generated UUIDv4
+identifiers and clock timestamps. Every mutation has a global idempotency key
+and expected audit revision. Plan definition and execution also enforce the
+current plan revision. An exact retry returns its original result without
+writing; incompatible key reuse or stale revisions return stable conflicts.
+
+A Work Item may have only one logical M4 test plan, with immutable versions.
+Executions can target only the active version and one case defined by it.
+Historical versions and executions remain visible in the protected test
+projection.
+
+Evidence registration stores metadata only. Its normalized logical path must be
+unique and contained below `evidence/`; registration performs no existence
+check, file read, content validation, upload, or external access. Audit text
+cannot contain absolute filesystem or URL-style locations.
+
+The audit ledger is the structured source of truth. Four deterministic Markdown
+files and the M4 manifest inventory are derived and protected. M3 and M4
+inventories must survive alternating updates without changing the historical
+seven-value M3 document enumeration. M4 never modifies `WORK_ITEM.yml`, Work
+Item status, `get_work_item_document`, closure, archive, or reopening.
+
+M4 changes `AI_CONTEXT` only through the existing explicit
+`refresh_ai_context` operation. The selected audit summary is deterministic,
+bounded to 16 KiB, and excludes paths, URLs, and evidence content.
 
 ## Future closure and reopening rules
 

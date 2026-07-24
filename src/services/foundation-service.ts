@@ -43,7 +43,14 @@ export interface ServerCapabilitiesResult {
       | 'initialize_work_item_documents'
       | 'get_work_item_document'
       | 'update_work_item_document'
-      | 'refresh_ai_context';
+      | 'refresh_ai_context'
+      | 'initialize_work_item_tracking'
+      | 'record_decision'
+      | 'record_checkpoint'
+      | 'define_test_plan'
+      | 'record_test_execution'
+      | 'register_evidence_reference'
+      | 'get_work_item_tracking';
     mutatesFilesystem: boolean;
   }>;
   notImplemented: string[];
@@ -85,6 +92,11 @@ export class FoundationService {
         'controlled-document-lifecycle',
         'document-revision-control',
         'derived-ai-context-projection',
+        'append-only-audit-tracking',
+        'idempotent-audit-mutations',
+        'versioned-test-planning',
+        'controlled-evidence-references',
+        'crash-recoverable-multi-file-commits',
       ],
       availableTools: [
         { name: 'health_check', mutatesFilesystem: false },
@@ -95,12 +107,17 @@ export class FoundationService {
         { name: 'get_work_item_document', mutatesFilesystem: false },
         { name: 'update_work_item_document', mutatesFilesystem: true },
         { name: 'refresh_ai_context', mutatesFilesystem: true },
+        { name: 'initialize_work_item_tracking', mutatesFilesystem: true },
+        { name: 'record_decision', mutatesFilesystem: true },
+        { name: 'record_checkpoint', mutatesFilesystem: true },
+        { name: 'define_test_plan', mutatesFilesystem: true },
+        { name: 'record_test_execution', mutatesFilesystem: true },
+        { name: 'register_evidence_reference', mutatesFilesystem: true },
+        { name: 'get_work_item_tracking', mutatesFilesystem: false },
       ],
       notImplemented: [
         'close_work_item',
         'reopen_work_item',
-        'record_decision',
-        'create_checkpoint',
         'rally-integration',
         'copado-integration',
       ],

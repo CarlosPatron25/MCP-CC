@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  AuditTrackingConflictError,
+  DocumentLifecycleConflictError,
   DocumentRevisionConflictError,
   DocumentTypeUnsupportedError,
   DocumentValidationError,
@@ -220,5 +222,29 @@ describe('WorkItemDocumentService', () => {
     expect(refreshedDocument.document.content).toContain('## Persisted functional analysis');
     await expect(readFile(rulesPath, 'utf8')).resolves.toBe(rules);
     await expect(readFile(nextTaskPath, 'utf8')).resolves.toBe(nextTask);
+  });
+
+  it('keeps the historical M3 conflict code when the optional M4 summary lock is busy', async () => {
+    const { workItemId, repository, service } = await createService();
+    await service.initialize({ workItemId });
+    const aiContext = await service.getDocument({ workItemId, documentType: 'AI_CONTEXT' });
+    const contestedService = new WorkItemDocumentService(
+      repository,
+      new DocumentTemplateService(),
+      new ManifestLifecycleService(fixedClock),
+      new AIContextProjectionService(),
+      {
+        getContextSummary: async () => {
+          throw new AuditTrackingConflictError('The shared lock is busy.');
+        },
+      },
+    );
+
+    await expect(
+      contestedService.refreshAiContext({
+        workItemId,
+        expectedRevision: aiContext.document.metadata.revision,
+      }),
+    ).rejects.toBeInstanceOf(DocumentLifecycleConflictError);
   });
 });

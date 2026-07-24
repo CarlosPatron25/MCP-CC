@@ -9,20 +9,20 @@ import {
   MANAGED_DOCUMENT_TYPES,
 } from '../domain/work-item-document.js';
 import type { Clock } from './clock.js';
-
-const LIFECYCLE_HEADING = '## Document Lifecycle Inventory';
-
-function orderedMetadata(
-  metadata: readonly DocumentLifecycleMetadata[],
-): DocumentLifecycleMetadata[] {
-  return [...metadata].sort((left, right) => left.relativePath.localeCompare(right.relativePath));
-}
+import {
+  ManifestSectionCompositor,
+  parseDocumentLifecycleInventorySection,
+  renderDocumentLifecycleInventorySection,
+} from './manifest-section-compositor.js';
+import { parseM4ManifestInventorySection } from './m4-manifest-inventory-service.js';
 
 /**
  * Owns the human-readable lifecycle inventory appended to the Milestone 2
  * manifest. It deliberately does not read, write, or parse filesystem paths.
  */
 export class ManifestLifecycleService {
+  private readonly compositor = new ManifestSectionCompositor();
+
   public constructor(private readonly clock: Clock) {}
 
   public createInitialMetadata(): DocumentLifecycleMetadata[] {
@@ -60,25 +60,17 @@ export class ManifestLifecycleService {
   }
 
   public render(existingManifest: string, metadata: readonly DocumentLifecycleMetadata[]): string {
-    const baseManifest = this.withoutLifecycleInventory(existingManifest);
-    const manifestMetadata = metadata.find((entry) => entry.documentType === 'MANIFEST');
-    const timestamp = manifestMetadata?.updatedAt ?? this.clock.now();
+    const existingSections = this.compositor.parse(existingManifest);
+    if (existingSections.documentLifecycle !== undefined) {
+      parseDocumentLifecycleInventorySection(existingSections.documentLifecycle.content);
+    }
+    if (existingSections.m4AuditInventory !== undefined) {
+      parseM4ManifestInventorySection(existingSections.m4AuditInventory.content);
+    }
 
-    return [
-      baseManifest,
-      '',
-      LIFECYCLE_HEADING,
-      '',
-      `- Generated at: ${timestamp}`,
-      '',
-      '| Document type | Relative path | Status | Revision | Updated at | Updated by | Content type |',
-      '| --- | --- | --- | --- | --- | --- | --- |',
-      ...orderedMetadata(metadata).map(
-        (entry) =>
-          `| ${entry.documentType} | ${entry.relativePath} | ${entry.status} | ${entry.revision} | ${entry.updatedAt} | ${entry.updatedBy} | ${entry.contentType} |`,
-      ),
-      '',
-    ].join('\n');
+    const section = renderDocumentLifecycleInventorySection(metadata);
+
+    return this.compositor.replaceDocumentLifecycle(existingManifest, section);
   }
 
   private initialLifecycle(documentType: ManagedDocumentType): {
@@ -98,11 +90,5 @@ export class ManifestLifecycleService {
       case 'IMPLEMENTATION_PLAN':
         return { status: 'INITIALIZED', contentType: 'TEMPLATE' };
     }
-  }
-
-  private withoutLifecycleInventory(manifest: string): string {
-    const headingIndex = manifest.indexOf(LIFECYCLE_HEADING);
-    const base = headingIndex === -1 ? manifest : manifest.slice(0, headingIndex);
-    return base.trimEnd();
   }
 }

@@ -11,7 +11,7 @@ later reopening of the same work item. The server is intentionally local and
 file-based in its first milestones. It has no external connection to Rally,
 Copado, Salesforce, or corporate systems.
 
-The completed Milestones 1, 2, and 3 are the local, documentary, and
+The completed Milestones 1 through 4 are the local, documentary, and
 architectural base from which WS Workspace Core may evolve. They are not yet a
 fully technology-neutral Core: the validated creation contract explicitly
 contains `SalesforceContext`, `developmentAlias`, and `rallyId`. Removing or
@@ -20,19 +20,22 @@ not implied by this product direction.
 
 ## Current state
 
-**Milestone 3 is completed.** Its approved and frozen implementation passed
-automated validation and manual IBM Bob validation on 2026-07-22. Milestones 1,
-2, and 3 are completed and validated.
+**Milestones 1 through 4 are completed and officially closed.** Milestone 4
+retains its frozen design and implementation after passing automated validation
+and manual IBM Bob validation with 42/42 tests.
 
 The server now provides secure creation of an initial DRAFT Work Item dossier
-and its controlled local document lifecycle, in addition to health inspection,
-capability discovery, and idempotent workspace initialization. Closing,
-archiving, reopening, decisions, checkpoints, and structured testing remain
+and its controlled local document lifecycle, append-only decisions and
+checkpoints, one immutable-version test plan, test executions, and controlled
+evidence references. Health inspection, capability discovery, idempotent
+workspace initialization, and explicit derived AI-context refresh remain
+available. Closing, archiving, reopening, and state transitions remain
 unavailable.
 
-Milestones 4 and 5 continue to use the current local file-based workspace. The
-product direction distinguishes a future WS Workspace Core, Technology Profiles
-and Project Profiles, without implementing or defining any of them today.
+Milestone 4 uses the current local file-based workspace. Milestone 5 remains
+future and unimplemented. The product direction distinguishes a future WS
+Workspace Core, Technology Profiles and Project Profiles, without implementing
+or defining any of them today.
 Sharing, synchronization, corporate folders, internal servers, and a Central
 Knowledge Service remain future options that have not been selected.
 
@@ -72,11 +75,15 @@ After building, run:
     npm.cmd run smoke
 
 The smoke client creates and removes its own temporary workspace. It starts the
-compiled server through stdio, discovers all eight tools, initializes a
+compiled server through stdio, discovers exactly 15 tools, initializes a
 workspace, creates a Work Item, initializes the Milestone 3 documents, reads
-and updates one document at its current revision, and refreshes AI context. It
-checks that no absolute temporary-workspace path is returned. It never uses
-`C:\\WS-Workspace` or another user workspace for this test.
+and updates one document at its current revision, initializes Milestone 4
+tracking, records every approved M4 entry type, reads a closed tracking view,
+performs an exact retry and a controlled conflict, reads all four closed
+tracking views, and explicitly refreshes AI context. It checks revisions,
+returned identifiers, capabilities, cleanup, and that no absolute
+temporary-workspace path is returned. It never uses `C:\\WS-Workspace` or
+another user workspace for this test.
 
 ## Create a Work Item
 
@@ -149,8 +156,70 @@ idempotent initialization, revision control and conflicts, strict payload
 validation, protected derived documents, `AI_CONTEXT` as `DERIVED`, and the
 absence of absolute paths. All Milestone 3 acceptance criteria are satisfied.
 
-Milestone 3 is officially closed. The next work is the design of Milestone 4;
-Milestone 4 has not started.
+Milestone 3 is officially closed. **Milestone 4 Architecture Challenge:
+PASSED** and **Milestone 4 Design Review: PASSED**. Its formal design is
+`FROZEN`.
+See [MILESTONE_4_DESIGN.md](docs/MILESTONE_4_DESIGN.md).
+
+## Milestone 4 audit tracking
+
+Milestone 4 adds exactly seven MCP tools without changing the historical
+Milestone 3 document enumeration or `get_work_item_document` contract:
+
+- `initialize_work_item_tracking`
+- `record_decision`
+- `record_checkpoint`
+- `define_test_plan`
+- `record_test_execution`
+- `register_evidence_reference`
+- `get_work_item_tracking`
+
+The structured source of truth is `records/AUDIT_LEDGER.json` with schema
+version `1.0.0`, a ledger-wide `auditRevision`, immutable append-only records,
+canonical request fingerprints, and a global idempotency-key index. One logical
+test plan can have immutable versions and executions only against its active
+version. Evidence references are logical metadata below `evidence/`; the server
+does not open, stat, upload, or validate referenced content.
+
+The ledger, the four protected Markdown projections, and the M4-owned manifest
+section are promoted as one logical multi-file commit under the same
+per-Work-Item lock used by Milestone 3. Recovery validates the journal, hashes,
+approved paths, physical directory chains, and lock ownership before restoring
+or removing anything. M4 never changes `WORK_ITEM.yml` or Work Item status.
+
+M4 mutations do not refresh `context/AI_CONTEXT.md`. Only an explicit
+`refresh_ai_context` derives the bounded M4 summary; it is deterministic, no
+larger than 16 KiB, and omits filesystem locations and evidence content.
+`get_work_item_tracking` exposes only `DECISIONS`, `CHECKPOINTS`, `TESTING`, or
+`EVIDENCE_REFERENCES`.
+
+## Milestone 4 validation and closure
+
+Automated validation passed with 24 test files and 145 tests, plus format,
+typecheck, lint, build, combined check, and the disposable-root MCP smoke flow.
+Coverage includes strict schemas and initialization precedence, exact retries
+and incompatible idempotency reuse, audit and plan revision conflicts,
+single-plan versioning, deterministic projections, lossless M3/M4 manifest
+composition, shared locking, crash recovery, symlink/junction rejection,
+logical evidence non-dereferencing, AI-context bounds and path redaction, and
+M1–M3 regression behavior.
+
+Manual IBM Bob validation passed with 42/42 tests, 0 failures, and 0
+non-executable tests. Its three observations were reviewed against the frozen
+contract: malformed `planId` and `testCaseId` values correctly fail strict
+request validation before semantic lookup, while parallel calls correctly
+return the shared-lock conflict. No contractual defect was found and no code
+change was required.
+
+The authoritative status is:
+
+- `Milestone 4 Design: FROZEN`
+- `Milestone 4 Implementation: COMPLETED — FROZEN`
+- `Milestone 4: COMPLETED`
+
+Milestone 4 is officially closed. See
+[Pruebas_Milestone_4.md](docs/Pruebas_Milestone_4.md) for the automated and
+manual evidence and the architectural resolution of the observations.
 
 ## Milestone 2 Validation
 

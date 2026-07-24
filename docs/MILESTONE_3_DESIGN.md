@@ -410,8 +410,9 @@ Milestone 3 is complete only when:
 - typecheck, lint, tests, build, combined check, and smoke test pass; and
 - validation evidence is recorded before the milestone is marked complete.
 
-All of these conditions were satisfied on 2026-07-22. Milestone 3 is closed;
-Milestone 4 remains unstarted.
+All of these conditions were satisfied on 2026-07-22. Milestone 3 is closed.
+At that closure, Milestone 4 was unstarted; it has since been completed and
+officially closed under its separate frozen design.
 
 ## 19. Risks
 

@@ -1,4 +1,4 @@
-import { lstat, mkdir, open, readFile, rename, rm, rmdir } from 'node:fs/promises';
+import { lstat, readFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 import {
@@ -9,14 +9,8 @@ import {
   type WorkItemType,
 } from '../domain/work-item.js';
 import {
-  DOCUMENT_CONTENT_TYPES,
-  DOCUMENT_LIFECYCLE_STATUSES,
   MANAGED_DOCUMENT_RELATIVE_PATHS,
-  MANAGED_DOCUMENT_TYPES,
-  isManagedDocumentType,
-  type DocumentContentType,
   type DocumentLifecycleMetadata,
-  type DocumentLifecycleStatus,
   type ManagedDocument,
   type ManagedDocumentType,
 } from '../domain/work-item-document.js';
@@ -32,17 +26,19 @@ import {
   type WorkspaceError,
 } from '../errors/workspace-error.js';
 import { resolvePathWithinRoot } from './safe-path.js';
+import { WorkItemOperationCoordinator } from './work-item-operation-coordinator.js';
 import type {
   CommitDossierDocumentRequest,
   InitializeDossierDocumentsRequest,
   InitializeDossierDocumentsResult,
   WorkItemDossierRepository,
 } from '../services/work-item-dossier-repository.js';
+import {
+  extractDocumentLifecycleInventorySection,
+  parseDocumentLifecycleInventorySection,
+} from '../services/manifest-section-compositor.js';
 
 const SAFE_WORK_ITEM_ID = /^[A-Z0-9]+(?:-[A-Z0-9]+)*$/;
-const LIFECYCLE_HEADING = '## Document Lifecycle Inventory';
-const LIFECYCLE_HEADER =
-  '| Document type | Relative path | Status | Revision | Updated at | Updated by | Content type |';
 
 export interface LocalFilesystemWorkItemDossierRepositoryOptions {
   workspaceRoot: string;
@@ -55,14 +51,19 @@ export interface LocalFilesystemWorkItemDossierRepositoryOptions {
 interface Replacement {
   relativePath: string;
   content: string;
-  targetPath: string;
   originalExists: boolean;
 }
 
-interface MovedOriginal {
-  targetPath: string;
-  backupPath: string;
-}
+const DOCUMENT_COMMIT_RELATIVE_PATHS = [...Object.values(MANAGED_DOCUMENT_RELATIVE_PATHS)] as const;
+
+export const SHARED_TRANSACTION_RELATIVE_PATHS = [
+  ...Object.values(MANAGED_DOCUMENT_RELATIVE_PATHS),
+  'records/AUDIT_LEDGER.json',
+  '06_DECISIONS.md',
+  '07_CHECKPOINTS.md',
+  '08_TEST_PLAN.md',
+  'evidence/REFERENCES.md',
+] as const;
 
 function isCode(error: unknown, expectedCode: string): error is NodeJS.ErrnoException {
   return (
@@ -75,14 +76,6 @@ function isCode(error: unknown, expectedCode: string): error is NodeJS.ErrnoExce
 
 function isWorkspaceError(error: unknown): error is WorkspaceError {
   return error instanceof Error && 'code' in error && typeof error.code === 'string';
-}
-
-function isDocumentLifecycleStatus(value: string): value is DocumentLifecycleStatus {
-  return (DOCUMENT_LIFECYCLE_STATUSES as readonly string[]).includes(value);
-}
-
-function isDocumentContentType(value: string): value is DocumentContentType {
-  return (DOCUMENT_CONTENT_TYPES as readonly string[]).includes(value);
 }
 
 function yamlString(value: string | undefined, field: string): string {
@@ -137,7 +130,7 @@ function yamlList(
   return values;
 }
 
-function parseWorkItem(content: string): WorkItem {
+export function parsePersistedWorkItem(content: string): WorkItem {
   const lines = content.split('\n');
   const type = yamlValue(lines, 'type: ', 'type');
   const status = yamlValue(lines, 'status: ', 'status');
@@ -205,102 +198,60 @@ function parseWorkItem(content: string): WorkItem {
   };
 }
 
-function parseLifecycleMetadata(manifest: string): DocumentLifecycleMetadata[] {
-  const lines = manifest.split('\n');
-  const headingIndex = lines.indexOf(LIFECYCLE_HEADING);
-  if (headingIndex === -1) {
+export function parseLifecycleMetadata(manifest: string): DocumentLifecycleMetadata[] {
+  const section = extractDocumentLifecycleInventorySection(manifest);
+  if (section === undefined) {
     throw new DocumentNotInitializedError('The document lifecycle has not been initialized.');
   }
-
-  const headerIndex = lines.indexOf(LIFECYCLE_HEADER, headingIndex);
-  if (headerIndex === -1 || lines[headerIndex + 1] === undefined) {
-    throw new ManifestUpdateError('The document lifecycle inventory cannot be read safely.');
-  }
-
-  const metadata: DocumentLifecycleMetadata[] = [];
-  for (let index = headerIndex + 2; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (line === undefined || line.trim().length === 0) {
-      break;
-    }
-    if (!line.startsWith('|') || !line.endsWith('|')) {
-      throw new ManifestUpdateError('The document lifecycle inventory cannot be read safely.');
-    }
-
-    const cells = line
-      .slice(1, -1)
-      .split('|')
-      .map((cell) => cell.trim());
-    const [documentType, relativePath, status, revisionText, updatedAt, updatedBy, contentType] =
-      cells;
-    if (
-      documentType === undefined ||
-      relativePath === undefined ||
-      status === undefined ||
-      revisionText === undefined ||
-      updatedAt === undefined ||
-      updatedBy === undefined ||
-      contentType === undefined ||
-      cells.length !== 7 ||
-      !isManagedDocumentType(documentType) ||
-      MANAGED_DOCUMENT_RELATIVE_PATHS[documentType] !== relativePath ||
-      !isDocumentLifecycleStatus(status) ||
-      !isDocumentContentType(contentType) ||
-      updatedBy !== 'SYSTEM'
-    ) {
-      throw new ManifestUpdateError('The document lifecycle inventory cannot be read safely.');
-    }
-
-    const revision = Number(revisionText);
-    if (!Number.isSafeInteger(revision) || revision < 1 || updatedAt.length === 0) {
-      throw new ManifestUpdateError('The document lifecycle inventory cannot be read safely.');
-    }
-
-    metadata.push({
-      documentType,
-      relativePath,
-      status,
-      revision,
-      updatedAt,
-      updatedBy: 'SYSTEM',
-      contentType,
-    });
-  }
-
-  if (
-    metadata.length !== MANAGED_DOCUMENT_TYPES.length ||
-    new Set(metadata.map((entry) => entry.documentType)).size !== MANAGED_DOCUMENT_TYPES.length
-  ) {
-    throw new ManifestUpdateError('The document lifecycle inventory cannot be read safely.');
-  }
-
-  return metadata;
+  return parseDocumentLifecycleInventorySection(section.content);
 }
 
 /** Local persistence adapter for the active, authorized Work Item workspace. */
 export class LocalFilesystemWorkItemDossierRepository implements WorkItemDossierRepository {
   private readonly beforeCommit: (() => void) | undefined;
   private readonly afterOriginalsMoved: (() => void) | undefined;
+  private readonly coordinator: WorkItemOperationCoordinator;
 
   public constructor(private readonly options: LocalFilesystemWorkItemDossierRepositoryOptions) {
     this.beforeCommit = options.beforeCommit;
     this.afterOriginalsMoved = options.afterOriginalsMoved;
+    this.coordinator = new WorkItemOperationCoordinator({
+      workspaceRoot: options.workspaceRoot,
+      allowedRelativePaths: DOCUMENT_COMMIT_RELATIVE_PATHS,
+      recoveryAllowedRelativePaths: SHARED_TRANSACTION_RELATIVE_PATHS,
+      conflictError: () =>
+        new DocumentLifecycleConflictError(
+          'Another document lifecycle operation is already in progress for this Work Item.',
+        ),
+      updateError: () => new DocumentUpdateError('Could not update the document lifecycle safely.'),
+      recoveryError: () =>
+        new DocumentUpdateError('Could not recover the document lifecycle safely.'),
+      injectFailure: (point) => {
+        if (point === 'after-staging-prepared') {
+          this.beforeCommit?.();
+        }
+        if (point === 'after-originals-moved') {
+          this.afterOriginalsMoved?.();
+        }
+        return undefined;
+      },
+    });
   }
 
   public async readWorkItem(workItemId: string): Promise<WorkItem> {
     const dossierDirectory = await this.dossierDirectory(workItemId);
-    await this.assertNotLocked(workItemId);
-    const workItemPath = await this.documentPath(dossierDirectory, 'WORK_ITEM.yml');
-    return parseWorkItem(await this.readTextFile(workItemPath, 'WORK_ITEM.yml'));
+    return this.coordinator.runExclusive(workItemId, dossierDirectory, async () => {
+      const workItemPath = await this.documentPath(dossierDirectory, 'WORK_ITEM.yml');
+      return parsePersistedWorkItem(await this.readTextFile(workItemPath, 'WORK_ITEM.yml'));
+    });
   }
 
   public async readManifestContent(workItemId: string): Promise<string> {
     const dossierDirectory = await this.dossierDirectory(workItemId);
-    await this.assertNotLocked(workItemId);
-    const manifestPath = await this.managedDocumentPath(dossierDirectory, 'MANIFEST');
-    const content = await this.readTextFile(manifestPath, '00_MANIFEST.md');
-    await this.assertNotLocked(workItemId);
-    return content;
+    return this.coordinator.runExclusive(workItemId, dossierDirectory, async () => {
+      const manifestPath = await this.managedDocumentPath(dossierDirectory, 'MANIFEST');
+      return this.readTextFile(manifestPath, '00_MANIFEST.md');
+    });
   }
 
   public async readDocument(
@@ -308,33 +259,32 @@ export class LocalFilesystemWorkItemDossierRepository implements WorkItemDossier
     documentType: ManagedDocumentType,
   ): Promise<ManagedDocument> {
     const dossierDirectory = await this.dossierDirectory(workItemId);
-    await this.assertNotLocked(workItemId);
-    const metadata = await this.readLifecycleMetadataInternal(dossierDirectory);
-    const documentMetadata = metadata.find((entry) => entry.documentType === documentType);
-    if (documentMetadata === undefined) {
-      throw new DocumentNotInitializedError('The requested document has not been initialized.');
-    }
-    const documentPath = await this.managedDocumentPath(dossierDirectory, documentType);
-    const document = {
-      metadata: documentMetadata,
-      content: await this.readTextFile(documentPath, documentMetadata.relativePath),
-    };
-    await this.assertNotLocked(workItemId);
-    return document;
+    return this.coordinator.runExclusive(workItemId, dossierDirectory, async () => {
+      const metadata = await this.readLifecycleMetadataInternal(dossierDirectory);
+      const documentMetadata = metadata.find((entry) => entry.documentType === documentType);
+      if (documentMetadata === undefined) {
+        throw new DocumentNotInitializedError('The requested document has not been initialized.');
+      }
+      const documentPath = await this.managedDocumentPath(dossierDirectory, documentType);
+      return {
+        metadata: documentMetadata,
+        content: await this.readTextFile(documentPath, documentMetadata.relativePath),
+      };
+    });
   }
 
   public async readLifecycleMetadata(workItemId: string): Promise<DocumentLifecycleMetadata[]> {
     const dossierDirectory = await this.dossierDirectory(workItemId);
-    await this.assertNotLocked(workItemId);
-    return this.readLifecycleMetadataInternal(dossierDirectory);
+    return this.coordinator.runExclusive(workItemId, dossierDirectory, () =>
+      this.readLifecycleMetadataInternal(dossierDirectory),
+    );
   }
 
   public async initializeDocuments(
     request: InitializeDossierDocumentsRequest,
   ): Promise<InitializeDossierDocumentsResult> {
     const dossierDirectory = await this.dossierDirectory(request.workItemId);
-    const releaseLock = await this.acquireLock(request.workItemId);
-    try {
+    return this.coordinator.runExclusive(request.workItemId, dossierDirectory, async () => {
       try {
         const existing = await this.readLifecycleMetadataInternal(dossierDirectory);
         return { created: [], existing };
@@ -359,30 +309,30 @@ export class LocalFilesystemWorkItemDossierRepository implements WorkItemDossier
         replacements.push({
           relativePath: document.metadata.relativePath,
           content: document.content,
-          targetPath,
           originalExists: false,
         });
       }
 
-      const manifestPath = await this.managedDocumentPath(dossierDirectory, 'MANIFEST');
+      await this.managedDocumentPath(dossierDirectory, 'MANIFEST');
       replacements.push({
         relativePath: request.manifest.metadata.relativePath,
         content: request.manifest.content,
-        targetPath: manifestPath,
         originalExists: true,
       });
 
-      await this.commitReplacements(request.workItemId, replacements, 'initialization');
+      await this.commitReplacements(
+        request.workItemId,
+        dossierDirectory,
+        replacements,
+        'initialization',
+      );
       return { created: request.documents.map((document) => document.metadata), existing: [] };
-    } finally {
-      await releaseLock();
-    }
+    });
   }
 
   public async commitDocument(request: CommitDossierDocumentRequest): Promise<void> {
     const dossierDirectory = await this.dossierDirectory(request.workItemId);
-    const releaseLock = await this.acquireLock(request.workItemId);
-    try {
+    return this.coordinator.runExclusive(request.workItemId, dossierDirectory, async () => {
       const lifecycle = await this.readLifecycleMetadataInternal(dossierDirectory);
       const currentDocument = lifecycle.find(
         (entry) => entry.documentType === request.document.metadata.documentType,
@@ -413,25 +363,22 @@ export class LocalFilesystemWorkItemDossierRepository implements WorkItemDossier
       await this.assertExistingFile(manifestPath, request.manifest.metadata.relativePath);
       await this.commitReplacements(
         request.workItemId,
+        dossierDirectory,
         [
           {
             relativePath: request.document.metadata.relativePath,
             content: request.document.content,
-            targetPath: documentPath,
             originalExists: true,
           },
           {
             relativePath: request.manifest.metadata.relativePath,
             content: request.manifest.content,
-            targetPath: manifestPath,
             originalExists: true,
           },
         ],
         'update',
       );
-    } finally {
-      await releaseLock();
-    }
+    });
   }
 
   private async dossierDirectory(workItemId: string): Promise<string> {
@@ -494,146 +441,32 @@ export class LocalFilesystemWorkItemDossierRepository implements WorkItemDossier
     return parseLifecycleMetadata(await this.readTextFile(manifestPath, '00_MANIFEST.md'));
   }
 
-  private async acquireLock(workItemId: string): Promise<() => Promise<void>> {
-    const workspaceDirectory = resolvePathWithinRoot(this.options.workspaceRoot, '.ws-workspace');
-    const lockDirectory = resolvePathWithinRoot(workspaceDirectory, '.locks');
-    await this.ensureDirectory(lockDirectory, 'Could not prepare the document lifecycle lock.');
-    const lockPath = resolvePathWithinRoot(lockDirectory, `${workItemId}.lifecycle.lock`);
-
-    try {
-      const lock = await open(lockPath, 'wx');
-      await lock.close();
-    } catch (error) {
-      if (isCode(error, 'EEXIST')) {
-        throw new DocumentLifecycleConflictError(
-          'Another document lifecycle operation is already in progress for this Work Item.',
-        );
-      }
-      throw new DocumentUpdateError('Could not start the document lifecycle operation safely.');
-    }
-
-    return async () => {
-      await rm(lockPath, { force: true }).catch(() => undefined);
-      await rmdir(lockDirectory).catch(() => undefined);
-    };
-  }
-
-  private async assertNotLocked(workItemId: string): Promise<void> {
-    const workspaceDirectory = resolvePathWithinRoot(this.options.workspaceRoot, '.ws-workspace');
-    const lockPath = resolvePathWithinRoot(
-      workspaceDirectory,
-      '.locks',
-      `${workItemId}.lifecycle.lock`,
-    );
-    try {
-      await lstat(lockPath);
-      throw new DocumentLifecycleConflictError(
-        'Another document lifecycle operation is already in progress for this Work Item.',
-      );
-    } catch (error) {
-      if (error instanceof DocumentLifecycleConflictError) {
-        throw error;
-      }
-      if (isCode(error, 'ENOENT')) {
-        return;
-      }
-      throw new DocumentLifecycleConflictError(
-        'Another document lifecycle operation is already in progress for this Work Item.',
-      );
-    }
-  }
-
   private async commitReplacements(
     workItemId: string,
+    dossierDirectory: string,
     replacements: readonly Replacement[],
     operation: 'initialization' | 'update',
   ): Promise<void> {
-    const stagingDirectory = await this.prepareStagingDirectory(workItemId);
-    const movedOriginals: MovedOriginal[] = [];
-    const movedReplacements: Replacement[] = [];
-
     try {
-      for (const replacement of replacements) {
-        const stagedPath = resolvePathWithinRoot(
-          stagingDirectory,
-          'files',
-          replacement.relativePath,
-        );
-        await mkdir(dirname(stagedPath), { recursive: true });
-        await this.writeFileExclusive(stagedPath, replacement.content);
-      }
-
-      this.beforeCommit?.();
-
-      for (let index = 0; index < replacements.length; index += 1) {
-        const replacement = replacements[index];
-        if (replacement === undefined || !replacement.originalExists) {
-          continue;
+      await this.coordinator.commit(workItemId, dossierDirectory, replacements, async () => {
+        for (const replacement of replacements) {
+          const targetPath = await this.documentPath(dossierDirectory, replacement.relativePath);
+          const visibleContent = await this.readTextFile(targetPath, replacement.relativePath);
+          if (visibleContent !== replacement.content) {
+            throw new DocumentUpdateError('Could not update the document lifecycle safely.');
+          }
         }
-        const backupPath = resolvePathWithinRoot(stagingDirectory, 'backups', `${index}.bak`);
-        await mkdir(dirname(backupPath), { recursive: true });
-        await rename(replacement.targetPath, backupPath);
-        movedOriginals.push({ targetPath: replacement.targetPath, backupPath });
-      }
-
-      this.afterOriginalsMoved?.();
-
-      for (const replacement of replacements) {
-        const stagedPath = resolvePathWithinRoot(
-          stagingDirectory,
-          'files',
-          replacement.relativePath,
-        );
-        await rename(stagedPath, replacement.targetPath);
-        movedReplacements.push(replacement);
-      }
+        await this.readLifecycleMetadataInternal(dossierDirectory);
+      });
     } catch (error) {
-      await this.restoreVisibleState(movedReplacements, movedOriginals);
-      if (isWorkspaceError(error)) {
-        throw error;
-      }
       if (operation === 'initialization') {
         throw new ManifestUpdateError('Could not initialize the document lifecycle safely.');
       }
+      if (isWorkspaceError(error)) {
+        throw error;
+      }
       throw new DocumentUpdateError('Could not update the document lifecycle safely.');
-    } finally {
-      await rm(stagingDirectory, { recursive: true, force: true }).catch(() => undefined);
-      await this.removeEmptyStagingParent();
     }
-  }
-
-  private async restoreVisibleState(
-    movedReplacements: readonly Replacement[],
-    movedOriginals: readonly MovedOriginal[],
-  ): Promise<void> {
-    for (const replacement of [...movedReplacements].reverse()) {
-      await rm(replacement.targetPath, { force: true }).catch(() => undefined);
-    }
-    for (const original of [...movedOriginals].reverse()) {
-      await rename(original.backupPath, original.targetPath).catch(() => undefined);
-    }
-  }
-
-  private async prepareStagingDirectory(workItemId: string): Promise<string> {
-    const workspaceDirectory = resolvePathWithinRoot(this.options.workspaceRoot, '.ws-workspace');
-    const stagingParent = resolvePathWithinRoot(workspaceDirectory, '.staging');
-    await this.ensureDirectory(
-      stagingParent,
-      'Could not prepare the document lifecycle staging area.',
-    );
-    const stagingDirectory = resolvePathWithinRoot(
-      stagingParent,
-      `${workItemId}-document-lifecycle`,
-    );
-    await rm(stagingDirectory, { recursive: true, force: true }).catch(() => undefined);
-    await mkdir(stagingDirectory);
-    return stagingDirectory;
-  }
-
-  private async removeEmptyStagingParent(): Promise<void> {
-    const workspaceDirectory = resolvePathWithinRoot(this.options.workspaceRoot, '.ws-workspace');
-    const stagingParent = resolvePathWithinRoot(workspaceDirectory, '.staging');
-    await rmdir(stagingParent).catch(() => undefined);
   }
 
   private assertInitializationRequest(request: InitializeDossierDocumentsRequest): void {
@@ -673,27 +506,6 @@ export class LocalFilesystemWorkItemDossierRepository implements WorkItemDossier
     }
   }
 
-  private async ensureDirectory(path: string, message: string): Promise<void> {
-    try {
-      await mkdir(path);
-    } catch (error) {
-      if (!isCode(error, 'EEXIST')) {
-        throw new DocumentUpdateError(message);
-      }
-    }
-    try {
-      const entry = await lstat(path);
-      if (!entry.isDirectory() || entry.isSymbolicLink()) {
-        throw new DocumentUpdateError(message);
-      }
-    } catch (error) {
-      if (error instanceof DocumentUpdateError) {
-        throw error;
-      }
-      throw new DocumentUpdateError(message);
-    }
-  }
-
   private async assertExistingFile(path: string, relativePath: string): Promise<void> {
     try {
       const entry = await lstat(path);
@@ -718,15 +530,6 @@ export class LocalFilesystemWorkItemDossierRepository implements WorkItemDossier
       throw new DocumentNotInitializedError('The requested document has not been initialized.', {
         document: relativePath,
       });
-    }
-  }
-
-  private async writeFileExclusive(path: string, content: string): Promise<void> {
-    const file = await open(path, 'wx');
-    try {
-      await file.writeFile(content, 'utf8');
-    } finally {
-      await file.close();
     }
   }
 
