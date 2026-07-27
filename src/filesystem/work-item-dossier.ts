@@ -43,6 +43,20 @@ async function assertExistingDirectory(path: string, message: string): Promise<v
   }
 }
 
+/** Verifies the M1 workspace preconditions without creating Work Item state. */
+export async function assertWorkItemWorkspaceInitialized(workspaceRoot: string): Promise<void> {
+  const workspaceDirectory = resolvePathWithinRoot(workspaceRoot, '.ws-workspace');
+  const activeDirectory = resolvePathWithinRoot(workspaceDirectory, 'active');
+  await assertExistingDirectory(
+    workspaceDirectory,
+    'The workspace must be initialized before creating a Work Item.',
+  );
+  await assertExistingDirectory(
+    activeDirectory,
+    'The workspace must be initialized before creating a Work Item.',
+  );
+}
+
 async function ensureDirectory(path: string): Promise<void> {
   try {
     await mkdir(path);
@@ -113,14 +127,7 @@ export async function createWorkItemDossier(
 
   const workspaceDirectory = resolvePathWithinRoot(workspaceRoot, '.ws-workspace');
   const activeDirectory = resolvePathWithinRoot(workspaceDirectory, 'active');
-  await assertExistingDirectory(
-    workspaceDirectory,
-    'The workspace must be initialized before creating a Work Item.',
-  );
-  await assertExistingDirectory(
-    activeDirectory,
-    'The workspace must be initialized before creating a Work Item.',
-  );
+  await assertWorkItemWorkspaceInitialized(workspaceRoot);
 
   const targetDirectory = resolvePathWithinRoot(activeDirectory, dossier.id);
   await assertTargetDoesNotExist(targetDirectory);

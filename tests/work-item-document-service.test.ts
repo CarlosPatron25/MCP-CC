@@ -86,7 +86,7 @@ describe('WorkItemDocumentService', () => {
     const result = await service.getDocument({ workItemId, documentType: 'TECHNICAL_ANALYSIS' });
 
     expect(result).toMatchObject({ workItemId });
-    expect(result.document.content).toContain('# Technical Analysis');
+    expect(result.document.content).toContain('# Análisis técnico');
     expect(result.document.metadata.relativePath).toBe('03_TECHNICAL_ANALYSIS.md');
     expect(JSON.stringify(result)).not.toContain(root);
     await expect(
@@ -219,7 +219,7 @@ describe('WorkItemDocumentService', () => {
       status: 'UPDATED',
       contentType: 'DERIVED',
     });
-    expect(refreshedDocument.document.content).toContain('## Persisted functional analysis');
+    expect(refreshedDocument.document.content).toContain('## Análisis funcional persistido');
     await expect(readFile(rulesPath, 'utf8')).resolves.toBe(rules);
     await expect(readFile(nextTaskPath, 'utf8')).resolves.toBe(nextTask);
   });

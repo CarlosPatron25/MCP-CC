@@ -1,5 +1,7 @@
 export type WorkspaceErrorCode =
   | 'CONFIGURATION_INVALID'
+  | 'WORKSPACE_CONFIGURATION_INVALID'
+  | 'DOCUMENT_RENDERING_SNAPSHOT_INVALID'
   | 'FILESYSTEM_ACCESS_DENIED'
   | 'PATH_OUTSIDE_WORKSPACE'
   | 'WORKSPACE_INITIALIZATION_FAILED'
@@ -52,6 +54,20 @@ export class ConfigurationError extends WorkspaceError {
   public constructor(message: string, details?: Record<string, string>) {
     super('CONFIGURATION_INVALID', message, details);
     this.name = 'ConfigurationError';
+  }
+}
+
+export class WorkspaceConfigurationInvalidError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('WORKSPACE_CONFIGURATION_INVALID', message, details);
+    this.name = 'WorkspaceConfigurationInvalidError';
+  }
+}
+
+export class DocumentRenderingSnapshotInvalidError extends WorkspaceError {
+  public constructor(message: string, details?: Record<string, string>) {
+    super('DOCUMENT_RENDERING_SNAPSHOT_INVALID', message, details);
+    this.name = 'DocumentRenderingSnapshotInvalidError';
   }
 }
 

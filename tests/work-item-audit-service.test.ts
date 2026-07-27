@@ -453,8 +453,8 @@ describe('WorkItemAuditService with the local M1-M4 stack', () => {
       trackingType: 'TESTING',
     });
     expect(testing.auditRevision).toBe(8);
-    expect(testing.content).toContain('Plan revision 2');
-    expect(testing.content).toContain('Plan revision 1');
+    expect(testing.content).toContain('Revisión del plan 2');
+    expect(testing.content).toContain('Revisión del plan 1');
     expect(testing.content).toContain('The active version executed successfully');
     await expectM4DoesNotChangeWorkItemOrAiContext(fixture);
   });

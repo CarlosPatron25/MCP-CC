@@ -103,6 +103,24 @@ validates physical identities and retains a live claim during lock release to
 detect tampering and fail closed, but it does not claim protection from a fully
 privileged hostile local process.
 
+## Milestone 4.1 configuration security (design frozen; manual validation pending)
+
+M4.1B reads only the fixed workspace-relative path
+`.ws-workspace/config/workspace-config.json`, after the existing containment,
+physical-parent and regular-file checks. The JSON has a 4 KiB maximum and
+strict closed validation. A missing file is created once using atomic
+non-replacement publication; a valid existing file is never overwritten and an
+invalid file is not repaired. Symlinks, junctions, non-regular files, malformed
+JSON, unknown fields and unsupported values fail closed.
+
+The per-Work-Item snapshot marker in `00_MANIFEST.md` is technical
+integrity metadata. Corruption is reported with safe, additive errors without filesystem
+paths. Historical Work Items without this metadata retain their English baseline
+and are not migrated. This design adds no environment variable, secret, network
+permission, workspace-wide lock, sidecar, or change to M3/M4 locking, journal,
+recovery or ledger security. M4.1B is `IMPLEMENTED — PENDING MANUAL IBM BOB
+VALIDATION`; no manual result is declared here.
+
 ## Secrets and sensitive data
 
 Do not commit credentials, tokens, certificates, internal URLs, client data,

@@ -128,6 +128,24 @@ M4 changes `AI_CONTEXT` only through the existing explicit
 `refresh_ai_context` operation. The selected audit summary is deterministic,
 bounded to 16 KiB, and excludes paths, URLs, and evidence content.
 
+## Milestone 4.1 document-language behaviour (design frozen; manual validation pending)
+
+For a Work Item created by the approved M4.1B implementation, the workspace
+document language is selected from a local, validated
+configuration and captured in immutable technical metadata in `00_MANIFEST.md`.
+The initial selection is `es-ES`; all system-owned new-document prose uses its provider
+profile and technical tokens remain exact. Human-provided fields, including
+functional definitions, acceptance criteria, supplied facts, decisions,
+evidence labels, and all other user text, are never translated.
+
+Work Items created before M4.1B remain English historical baseline artifacts.
+They are not migrated, and the absence of a manifest marker is compatible. The
+design does not modify the M2 minimum dossier, M3 typed payloads, M4 ledger or
+projections, Work Item states, `AI_CONTEXT` semantics, or any MCP operation.
+There is no language parameter and no `WS_DOCUMENT_LANGUAGE` setting. M4.1B
+automatic tests and smoke validation have passed; IBM Bob validation remains
+pending.
+
 ## Future closure and reopening rules
 
 Closing must record an actual completion date, final report, test evidence and

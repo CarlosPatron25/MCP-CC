@@ -6,6 +6,10 @@ import type {
   TestExecution,
   TestPlanVersion,
 } from '../domain/work-item-audit.js';
+import {
+  BaselineEnglishDocumentContentProviderV1,
+  type DocumentContentProvider,
+} from './document-rendering.js';
 
 export const AUDIT_CONTEXT_MAX_BYTES = 16 * 1024;
 export const AUDIT_CONTEXT_OMISSION_MARKER =
@@ -162,7 +166,7 @@ function priorityCheckpointRank(checkpoint: Checkpoint): number {
   return checkpoint.kind === 'BLOCKER' ? 0 : 1;
 }
 
-function buildSections(ledger: AuditLedger): SummarySection[] {
+function buildSections(ledger: AuditLedger, provider: DocumentContentProvider): SummarySection[] {
   const currentCheckpointEntries = selectCurrentCheckpoints(ledger.checkpoints);
   const priorityCheckpoints = currentCheckpointEntries
     .filter((checkpoint) => checkpoint.kind === 'BLOCKER' || checkpoint.kind === 'RISK')
@@ -183,59 +187,59 @@ function buildSections(ledger: AuditLedger): SummarySection[] {
           const execution = latestExecution(activePlan, testCase.testCaseId, ledger.testExecutions);
           const result =
             execution === undefined
-              ? '_Not run._'
+              ? `_${provider.text('noTestCaseRun')}_`
               : `${markdownCode(execution.outcome)} — ${markdownInline(execution.summary)} (${markdownInline(execution.recordedAt)})`;
           return `- ${markdownInline(testCase.title)} (${markdownCode(testCase.testCaseId)}): ${result}`;
         });
 
   return [
     {
-      heading: 'Priority risks and blockers',
+      heading: provider.text('priorityRisksAndBlockers'),
       units: priorityCheckpoints.map(
         (checkpoint) =>
           `- ${markdownCode(checkpoint.kind)} ${markdownCode(checkpoint.id)} — ${markdownInline(checkpoint.summary)} (${markdownInline(checkpoint.recordedAt)})`,
       ),
-      emptyText: '_No current risks or blockers recorded._',
+      emptyText: `_${provider.text('noRisksOrBlockers')}_`,
     },
     {
-      heading: 'Current decisions',
+      heading: provider.text('currentDecisions'),
       units: selectCurrentDecisions(ledger.decisions).map(
         (decision) =>
           `- ${markdownInline(decision.title)} (${markdownCode(decision.id)}): ${markdownInline(decision.decision)}`,
       ),
-      emptyText: '_No current decisions recorded._',
+      emptyText: `_${provider.text('noCurrentDecisions')}_`,
     },
     {
-      heading: 'Active test plan',
+      heading: provider.text('activeTestPlan'),
       units:
         activePlan === undefined
           ? []
           : [
-              `- Plan ${markdownCode(activePlan.planId)}, revision ${activePlan.planRevision}: ${markdownInline(activePlan.purpose)}`,
+              `- ${provider.text('plan')} ${markdownCode(activePlan.planId)}, ${provider.text('revision').toLowerCase()} ${activePlan.planRevision}: ${markdownInline(activePlan.purpose)}`,
             ],
-      emptyText: '_No active test plan recorded._',
+      emptyText: `_${provider.text('noActiveTestPlanRecorded')}_`,
     },
     {
-      heading: 'Latest result per active test case',
+      heading: provider.text('latestResultPerActiveTestCase'),
       units: resultUnits,
-      emptyText: '_No active test cases recorded._',
+      emptyText: `_${provider.text('noActiveTestCases')}_`,
     },
     {
-      heading: 'Recent checkpoints',
+      heading: provider.text('recentCheckpoints'),
       units: recentCheckpoints.map(
         (checkpoint) =>
           `- ${markdownCode(checkpoint.kind)} ${markdownCode(checkpoint.id)} — ${markdownInline(checkpoint.summary)} (${markdownInline(checkpoint.recordedAt)})`,
       ),
-      emptyText: '_No recent progress or handoff checkpoints recorded._',
+      emptyText: `_${provider.text('noRecentCheckpoints')}_`,
     },
     {
-      heading: 'Evidence references',
+      heading: provider.text('evidenceReferencesSummary'),
       units: [...ledger.evidenceReferences]
         .sort(
           (left, right) => compareText(left.label, right.label) || compareText(left.id, right.id),
         )
         .map((reference) => `- ${markdownCode(reference.id)} — ${markdownInline(reference.label)}`),
-      emptyText: '_No evidence references recorded._',
+      emptyText: `_${provider.text('noEvidenceReferencesSummary')}_`,
     },
   ];
 }
@@ -243,11 +247,12 @@ function buildSections(ledger: AuditLedger): SummarySection[] {
 function renderSummary(
   sections: readonly SummarySection[],
   selectedUnits: readonly ReadonlySet<number>[],
+  provider: DocumentContentProvider,
 ): string {
   const lines = [
-    '## Milestone 4 Audit Summary',
+    `## ${provider.text('auditSummary')}`,
     '',
-    '> Derived audit summary. It changes only through an explicit AI-context refresh.',
+    `> ${provider.text('derivedAuditSummary')}`,
   ];
 
   sections.forEach((section, sectionIndex) => {
@@ -264,7 +269,11 @@ function renderSummary(
       }
     });
     if (selected.size < section.units.length) {
-      lines.push(AUDIT_CONTEXT_OMISSION_MARKER);
+      lines.push(
+        provider.profileId === 'EN_BASELINE_V1'
+          ? AUDIT_CONTEXT_OMISSION_MARKER
+          : `- _${provider.text('additionalAuditEntriesOmitted')}_`,
+      );
     }
   });
 
@@ -286,21 +295,24 @@ function isTruncated(
  * results, recent checkpoints, and finally evidence labels.
  */
 export class AuditContextSummaryService {
-  public summarize(ledger: AuditLedger): AuditContextSummaryResult {
-    const sections = buildSections(ledger);
+  public summarize(
+    ledger: AuditLedger,
+    provider: DocumentContentProvider = new BaselineEnglishDocumentContentProviderV1(),
+  ): AuditContextSummaryResult {
+    const sections = buildSections(ledger, provider);
     const selectedUnits = sections.map(() => new Set<number>());
 
     sections.forEach((section, sectionIndex) => {
       section.units.forEach((_unit, unitIndex) => {
         selectedUnits[sectionIndex]?.add(unitIndex);
-        const candidate = renderSummary(sections, selectedUnits);
+        const candidate = renderSummary(sections, selectedUnits, provider);
         if (Buffer.byteLength(candidate, 'utf8') > AUDIT_CONTEXT_MAX_BYTES) {
           selectedUnits[sectionIndex]?.delete(unitIndex);
         }
       });
     });
 
-    const content = renderSummary(sections, selectedUnits);
+    const content = renderSummary(sections, selectedUnits, provider);
     return {
       content,
       byteLength: Buffer.byteLength(content, 'utf8'),
@@ -308,7 +320,10 @@ export class AuditContextSummaryService {
     };
   }
 
-  public project(ledger: AuditLedger): string {
-    return this.summarize(ledger).content;
+  public project(
+    ledger: AuditLedger,
+    provider: DocumentContentProvider = new BaselineEnglishDocumentContentProviderV1(),
+  ): string {
+    return this.summarize(ledger, provider).content;
   }
 }

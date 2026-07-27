@@ -3,7 +3,7 @@
 No delivery dates are assigned. A milestone starts only after the preceding one
 has verifiable validation evidence.
 
-## Milestone 1: MCP Foundation - COMPLETED
+## Milestone 1: MCP Foundation - COMPLETED — FROZEN
 
 Create the local TypeScript project, documentation, secure configuration and
 foundation tools. This milestone is completed and its validation includes a
@@ -12,7 +12,7 @@ Bob `mcp.json` registration, real MCP tool execution over stdio, and secure
 filesystem isolation. See [CURRENT_STATE.md](CURRENT_STATE.md) for the
 verification record.
 
-## Milestone 2: Work Item Creation - COMPLETED
+## Milestone 2: Work Item Creation - COMPLETED — FROZEN
 
 Validate manual fields, create a work-item directory and initial dossier, and
 persist the initial manifest. Its delivered structure is limited to
@@ -27,7 +27,7 @@ IBM Bob validation also confirmed health, capabilities, initialization
 idempotency, DRAFT dossier creation, duplicate protection, non-overwrite
 behavior, and the absence of absolute paths in MCP responses.
 
-## Milestone 3: Context and Document Lifecycle - COMPLETED
+## Milestone 3: Context and Document Lifecycle - COMPLETED — FROZEN
 
 Generate and update the functional, current-state, technical-analysis, impact,
 implementation-plan and AI-context documents through controlled services.
@@ -54,7 +54,7 @@ PASSED.** Its formal design is frozen in
 [MILESTONE_4_DESIGN.md](MILESTONE_4_DESIGN.md). Automated implementation
 validation and manual IBM Bob validation have passed.
 
-## Milestone 4: Decisions, Checkpoints and Testing - COMPLETED
+## Milestone 4: Decisions, Checkpoints and Testing - COMPLETED — FROZEN
 
 The implemented milestone provides auditable decisions, progress checkpoints,
 test plans, executions, and evidence references through local file persistence.
@@ -87,13 +87,32 @@ state transitions. Its detailed design is documented in
 [MILESTONE_4_DESIGN.md](MILESTONE_4_DESIGN.md), and the implementation follows
 that frozen contract.
 
-## Milestone 5: Closing, Archive and Reopening
+## Milestone 4.1A: Document-language design - DESIGN APPROVED — FROZEN
+
+This design-only milestone freezes the workspace-local language configuration,
+immutable per-Work-Item manifest rendering snapshot, Spanish provider profile for future
+system-owned prose, technical Markdown marker, and English historical baseline.
+It makes no implementation change and does not alter M1–M4 contracts, tools,
+locks, journal, recovery, ledger, or AI context. See
+[MILESTONE_4_1_DESIGN.md](MILESTONE_4_1_DESIGN.md).
+
+## Milestone 4.1B: Document-language implementation - IMPLEMENTED
+
+M4.1B implements the frozen M4.1A design, automatic regression coverage and
+smoke validation. Manual IBM Bob validation passed with no implementation or
+contract defects; idempotent retry, human-payload preservation, rendering
+marker, historical compatibility, and M1–M4 regression were validated. The
+observations were non-blocking. The language is not a runtime variable or MCP
+parameter, and no tool contract changed. Milestone 4.1 is `COMPLETED — FROZEN`.
+
+## Milestone 5: Closing, Archive and Reopening - READY TO START
 
 Implement transition validation, generated actual completion dates, controlled
 archive handling, final reports and auditable reopening.
 This milestone continues to use local file persistence.
 
-Status: not started. This roadmap entry is not a frozen technical contract.
+Status: ready to start. This roadmap entry is not a frozen technical contract
+until separately planned and approved.
 
 ## Post-MVP architecture options
 

@@ -152,3 +152,25 @@ The optional M4 part of `AI_CONTEXT` is also derived, but only during an
 explicit refresh. It contains selected current audit facts, excludes physical
 and logical locations and evidence content, and is bounded to 16 KiB by
 complete semantic units.
+
+## Milestone 4.1 rendering metadata (design frozen; implementation pending manual validation)
+
+M4.1A introduces no domain field and changes neither `WorkItem` nor the M4
+audit ledger. Its frozen M4.1B persistence design adds technical rendering
+metadata only for Work Items created after M4.1B implementation:
+
+- workspace configuration at `.ws-workspace/config/workspace-config.json`:
+  `schemaVersion: "1.0.0"` and `documentLanguage: "es-ES"`;
+- an immutable `DocumentRenderingSnapshotV1` persisted as technical metadata in
+  the new `00_MANIFEST.md`, with schema `1.0.0`, language `es-ES`, and profile
+  `ES_ES_V1`;
+- one exact technical rendering marker in that new manifest, immediately after
+  its H1 and blank line, outside protected M3/M4 blocks.
+
+`DocumentLanguageCode` is initially the closed value `es-ES`.
+`DocumentRenderingProfileId` is internally `ES_ES_V1` or
+`EN_BASELINE_V1`; the latter represents the absence of a manifest marker in
+historical English artifacts, not a selectable language. These records are not
+functional input, business data, audit entries, or fields of the domain
+`WorkItem` contract. M4.1B is `IMPLEMENTED — PENDING MANUAL IBM BOB
+VALIDATION`; historical dossiers receive no migration or rewrite.

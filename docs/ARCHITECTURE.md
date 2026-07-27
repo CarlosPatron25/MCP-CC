@@ -237,6 +237,31 @@ server environment variable through its verified registration. There is no
 additional Bob-specific server configuration and no implicit fallback. Invalid,
 missing, inaccessible or non-directory roots stop server startup safely.
 
+## Milestone 4.1 document-language implementation (completed and frozen)
+
+M4.1A approves the implemented local configuration at
+`.ws-workspace/config/workspace-config.json`, with the canonical initial JSON
+`{"schemaVersion":"1.0.0","documentLanguage":"es-ES"}`. M4.1B implements
+this persistence contract while the server continues to accept only
+`WS_WORKSPACE_ROOT`; no `WS_DOCUMENT_LANGUAGE` variable or MCP parameter exists.
+
+M4.1B writes an immutable rendering snapshot as technical metadata in each
+new `00_MANIFEST.md` and resolves an internal `ES_ES_V1` or historical
+`EN_BASELINE_V1` provider from it. System-owned prose is supplied through a
+typed provider registry. Human payloads and strict technical tokens remain
+literal. Each new Spanish
+`00_MANIFEST.md` carries the technical rendering marker specified in
+[MILESTONE_4_1_DESIGN.md](MILESTONE_4_1_DESIGN.md); it is not a business or
+audit record and no sidecar is introduced.
+
+The design preserves the M3/M4 coordinator, locks, journal and recovery
+boundaries. Snapshot resolution for rendering occurs inside the existing Work
+Item operation boundary, while historical Work Items without a manifest marker
+retain their persisted English baseline without migration. Configuration files
+are strictly bounded, validated, and created without replacement. M4.1B is
+implemented with automatic and manual IBM Bob validation passed. Milestone 4.1
+is `COMPLETED — FROZEN`, and Milestone 5 is ready to start.
+
 ## Infrastructure independence and future profiles
 
 Domain and application-service logic must remain independent of the MCP

@@ -36,7 +36,8 @@ The intended MVP supports exactly four work-item types, local file persistence,
 a controlled document lifecycle, state tracking and an MCP-first interface for
 IBM Bob.
 
-Milestones 1 through 4 are completed and validated. Milestone 1 provides the
+Milestones 1 through 4 are `COMPLETED — FROZEN` and validated. Milestone 1
+provides the
 secure MCP foundation and workspace initialization. Milestone 2 provides safe,
 manual creation of a DRAFT Work Item and its minimum initial dossier through
 `create_work_item`. Milestone 3 completes the approved local context-and-
@@ -46,8 +47,21 @@ and derived AI-context refresh. Milestone 4 implements local append-only
 decisions and checkpoints, immutable test-plan versions and executions,
 controlled evidence references, deterministic audit projections, and explicit
 bounded AI-context integration. Its automated validation and manual IBM Bob
-validation have passed, and Milestone 4 is completed. Search and all state
+validation have passed, and Milestone 4 is completed. M4.1A is a
+`DESIGN APPROVED — FROZEN` documentation/localisation decision; M4.1B is
+`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. Search and all state
 transitions remain future milestone work.
+
+## M4.1A document-language boundary
+
+The approved M4.1A design governs implemented system-owned documentation for
+new Work Items through a workspace-selected `es-ES` profile captured in an
+immutable snapshot. It neither translates user-provided content nor changes the existing
+MCP, Work Item, ledger, locking, recovery, or `AI_CONTEXT` contracts. Historical
+Work Items remain in their persisted English baseline. The configuration and
+snapshot are implemented; no `WS_DOCUMENT_LANGUAGE` runtime variable exists.
+M4.1B is `IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`, M4.1 is not
+completed, and Milestone 5 is `PAUSED`.
 
 ## Outside the MVP
 
@@ -60,7 +74,8 @@ transitions remain future milestone work.
 ## Future architecture direction
 
 The local-file MVP remains the approved execution architecture through
-Milestones 4 and 5. Product evolution distinguishes a future general WS
+Milestone 4; M4.1A is design-only and Milestone 5 is paused. Product evolution
+distinguishes a future general WS
 Workspace Core from future Technology Profiles and Project Profiles. A
 Technology Profile may eventually express technology-specific vocabulary and
 conventions; a Project Profile may eventually hold stable, project-wide

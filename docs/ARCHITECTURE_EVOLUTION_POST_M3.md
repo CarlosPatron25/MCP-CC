@@ -9,12 +9,12 @@ historical evidence.
 
 ## Validated base at the time of review
 
-Milestones 1, 2, and 3 are `COMPLETED`. They provide the local MCP foundation,
+Milestones 1, 2, and 3 are `COMPLETED — FROZEN`. They provide the local MCP foundation,
 safe Work Item creation, and controlled document lifecycle. The local
 filesystem remains the sole authorized persistence mechanism, and the existing
 hexagonal architecture remains in force.
 
-Milestone 4 was subsequently completed and officially closed under its own
+Milestone 4 was subsequently completed, frozen, and officially closed under its own
 frozen design after automated and manual IBM Bob validation passed.
 
 These milestones are the local, documentary, and architectural base from which
@@ -67,6 +67,15 @@ Milestone 4 was unstarted and subject to a separate design review. Milestone 4
 has since been designed, implemented, validated, and officially closed under
 its own frozen contract. Technology Profiles, Project Profiles, and sharing
 architecture were not part of Milestone 4 and remain unimplemented.
+
+## Current status after M4.1B implementation
+
+Milestones 1–4 are `COMPLETED — FROZEN`. M4.1A is
+`DESIGN APPROVED — FROZEN`: it documents workspace-local `es-ES` rendering,
+manifest-resident technical snapshot metadata, provider boundaries and
+historical English compatibility. M4.1B implements that frozen design without
+changing the conceptual layering and is `IMPLEMENTED — PENDING MANUAL IBM BOB
+VALIDATION`; Milestone 5 is `PAUSED`.
 
 ## Authority
 

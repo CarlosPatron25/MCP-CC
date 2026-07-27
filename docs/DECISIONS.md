@@ -4,31 +4,32 @@ All decisions below are approved. Status is Accepted unless later superseded.
 
 ## Approved decision index
 
-| #   | Approved decision                                                 | Record  |
-| --- | ----------------------------------------------------------------- | ------- |
-| 1   | Only four work-item types exist.                                  | ADR-001 |
-| 2   | Rally ID is mandatory.                                            | ADR-002 |
-| 3   | Git branches are not used in the workflow.                        | ADR-003 |
-| 4   | A development sandbox or alias is mandatory.                      | ADR-004 |
-| 5   | Start date is mandatory.                                          | ADR-005 |
-| 6   | Planned completion date is optional.                              | ADR-005 |
-| 7   | Actual completion date is generated on close.                     | ADR-005 |
-| 8   | Responsible person is optional.                                   | ADR-006 |
-| 9   | Initially related components are captured.                        | ADR-006 |
-| 10  | Additional business information is optional.                      | ADR-006 |
-| 11  | The first interface is MCP for IBM Bob.                           | ADR-007 |
-| 12  | The verified IBM Bob registration is accepted.                    | ADR-007 |
-| 13  | Initial local transport is stdio.                                 | ADR-008 |
-| 14  | The core is decoupled from the MCP adapter.                       | ADR-009 |
-| 15  | There is no Rally integration in Milestone 1.                     | ADR-010 |
-| 16  | There is no Copado integration in Milestone 1.                    | ADR-010 |
-| 17  | There is no VS Code extension in the MVP.                         | ADR-011 |
-| 18  | Initial persistence is file-based.                                | ADR-009 |
-| 19  | Development and validation are incremental.                       | ADR-012 |
-| 20  | The tool never accesses or writes outside its authorized root.    | ADR-012 |
-| 21  | IBM Bob runs the compiled server against a separate runtime root. | ADR-014 |
-| 22  | The MVP remains local; future sharing needs separate approval.    | ADR-015 |
-| 23  | Product layering and deferred future sharing are clarified.       | ADR-016 |
+| #   | Approved decision                                                                | Record  |
+| --- | -------------------------------------------------------------------------------- | ------- |
+| 1   | Only four work-item types exist.                                                 | ADR-001 |
+| 2   | Rally ID is mandatory.                                                           | ADR-002 |
+| 3   | Git branches are not used in the workflow.                                       | ADR-003 |
+| 4   | A development sandbox or alias is mandatory.                                     | ADR-004 |
+| 5   | Start date is mandatory.                                                         | ADR-005 |
+| 6   | Planned completion date is optional.                                             | ADR-005 |
+| 7   | Actual completion date is generated on close.                                    | ADR-005 |
+| 8   | Responsible person is optional.                                                  | ADR-006 |
+| 9   | Initially related components are captured.                                       | ADR-006 |
+| 10  | Additional business information is optional.                                     | ADR-006 |
+| 11  | The first interface is MCP for IBM Bob.                                          | ADR-007 |
+| 12  | The verified IBM Bob registration is accepted.                                   | ADR-007 |
+| 13  | Initial local transport is stdio.                                                | ADR-008 |
+| 14  | The core is decoupled from the MCP adapter.                                      | ADR-009 |
+| 15  | There is no Rally integration in Milestone 1.                                    | ADR-010 |
+| 16  | There is no Copado integration in Milestone 1.                                   | ADR-010 |
+| 17  | There is no VS Code extension in the MVP.                                        | ADR-011 |
+| 18  | Initial persistence is file-based.                                               | ADR-009 |
+| 19  | Development and validation are incremental.                                      | ADR-012 |
+| 20  | The tool never accesses or writes outside its authorized root.                   | ADR-012 |
+| 21  | IBM Bob runs the compiled server against a separate runtime root.                | ADR-014 |
+| 22  | The MVP remains local; future sharing needs separate approval.                   | ADR-015 |
+| 23  | Product layering and deferred future sharing are clarified.                      | ADR-016 |
+| 24  | Document-language configuration and rendering snapshots are local and immutable. | ADR-017 |
 
 ## ADR-001: Work-item types
 
@@ -253,5 +254,51 @@ ADR-015's historical motivation and its local-MVP preservation remain intact.
 Roadmap impact: Milestone 4 remains limited to its existing decisions,
 checkpoints, and testing scope. This ADR does not start, redesign, or expand
 Milestone 4.
+
+Status: Accepted.
+
+## ADR-017: Persistencia del idioma documental y snapshot de rendering
+
+Context: Milestones 1–4 están completados y congelados con documentación de
+sistema en inglés, contratos MCP cerrados y persistencia local. Se necesita
+preparar localización de la prosa propiedad del sistema para Work Items nuevos
+sin reinterpretar históricos, traducir contenido humano ni ampliar el contrato
+de transporte.
+
+Decision: La fuente de verdad del idioma documental será
+`.ws-workspace/config/workspace-config.json`, con el contrato versionado
+`{"schemaVersion":"1.0.0","documentLanguage":"es-ES"}`. La configuración
+será JSON estricto de hasta 4 KiB, se creará sólo cuando falte mediante
+publicación atómica sin reemplazo y nunca se sobrescribirá o reparará
+silenciosamente. No se introduce `WS_DOCUMENT_LANGUAGE`, parámetro MCP, sidecar
+ni workspace lock.
+
+Cada Work Item nuevo creado por la implementación M4.1B conservará un
+snapshot inmutable de idioma y perfil como metadata técnica dentro de
+`00_MANIFEST.md`. Los perfiles
+internos son `ES_ES_V1` para la prosa española nueva y `EN_BASELINE_V1` sólo para
+compatibilidad histórica por ausencia de marker. La prosa del sistema será
+proporcionada por proveedores tipados y un registro exhaustivo de artefactos;
+los payloads humanos y tokens técnicos exactos no se traducen. Todo dossier
+nuevo `ES_ES_V1` persistirá el marcador técnico exacto exclusivamente en su
+`00_MANIFEST.md`, según lo establecido en
+`MILESTONE_4_1_DESIGN.md`, tras el H1 y antes del primer `##`.
+
+Los Work Items históricos sin marker conservarán exactamente el
+baseline inglés, sin migración. Un snapshot, configuración o marcador inválido
+fallará cerrado con errores aditivos seguros. M3 y M4 conservan sus locks,
+journal, recovery, ledger, bloques protegidos, precedencia general y contratos
+MCP.
+
+Consequences: El marker es metadata técnica interna, no información funcional
+ni de negocio. Su borrado manual completo es un riesgo residual aceptado: puede
+hacer un dossier español indistinguible de un histórico sin marker, sin que se
+autorice sidecar o autoreparación. M4.1A queda aprobado y congelado como diseño.
+M4.1B debe
+implementar proveedores, validadores, parser de marcador, pruebas de seguridad
+y regresión. La validación automática está superada y la validación IBM Bob
+separada queda pendiente antes del cierre administrativo de M4.1. No cambia el
+modelo `WorkItem`, el ledger, las quince herramientas MCP ni Milestone 5, que
+permanece pausado.
 
 Status: Accepted.

@@ -2,16 +2,12 @@ import { open, lstat, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { WorkspaceInitializationError } from '../errors/workspace-error.js';
+import {
+  providerForDocumentLanguage,
+  type DocumentContentProvider,
+} from '../services/document-rendering.js';
 import { resolvePathWithinRoot } from './safe-path.js';
-
-const INITIAL_WORKSPACE_README = [
-  '# WS Workspace',
-  '',
-  'This directory is managed by WS Workspace MCP.',
-  'It contains active and archived work-item documentation.',
-  'Do not place credentials, corporate source code or production data here.',
-  '',
-].join('\n');
+import { ensureWorkspaceDocumentLanguageConfiguration } from './workspace-document-language-configuration.js';
 
 type CreationStatus = 'created' | 'existing';
 
@@ -23,6 +19,7 @@ export interface InitializationEntry {
 export interface WorkspaceInitializationResult {
   directories: InitializationEntry[];
   readme: InitializationEntry;
+  configuration: InitializationEntry;
   created: string[];
   existing: string[];
 }
@@ -56,10 +53,24 @@ async function ensureDirectory(directoryPath: string): Promise<CreationStatus> {
   }
 }
 
-async function ensureReadme(readmePath: string): Promise<CreationStatus> {
+function renderWorkspaceReadme(provider: DocumentContentProvider): string {
+  return [
+    `# ${provider.text('workspaceTitle')}`,
+    '',
+    provider.text('workspaceManaged'),
+    provider.text('workspaceContents'),
+    provider.text('workspaceSafety'),
+    '',
+  ].join('\n');
+}
+
+async function ensureReadme(
+  readmePath: string,
+  provider: DocumentContentProvider,
+): Promise<CreationStatus> {
   try {
     const file = await open(readmePath, 'wx');
-    await file.writeFile(INITIAL_WORKSPACE_README, 'utf8');
+    await file.writeFile(renderWorkspaceReadme(provider), 'utf8');
     await file.close();
     return 'created';
   } catch (error) {
@@ -105,13 +116,16 @@ export async function initializeWorkspace(
     directories.push(toEntry(directory.displayPath, status));
   }
 
-  const readmeStatus = await ensureReadme(readmePath);
+  const configurationStatus = await ensureWorkspaceDocumentLanguageConfiguration(workspaceRoot);
+  const configuration = toEntry('config/workspace-config.json', configurationStatus);
+  const readmeStatus = await ensureReadme(readmePath, providerForDocumentLanguage('es-ES'));
   const readme = toEntry('README.md', readmeStatus);
-  const allEntries = [...directories, readme];
+  const allEntries = [...directories, configuration, readme];
 
   return {
     directories,
     readme,
+    configuration,
     created: allEntries.filter((entry) => entry.status === 'created').map((entry) => entry.path),
     existing: allEntries.filter((entry) => entry.status === 'existing').map((entry) => entry.path),
   };

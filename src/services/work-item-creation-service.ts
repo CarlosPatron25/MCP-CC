@@ -8,7 +8,10 @@ import {
   type WorkItemType,
 } from '../domain/work-item.js';
 import { WorkItemValidationError } from '../errors/workspace-error.js';
+import { providerForDocumentLanguage, type DocumentContentProvider } from './document-rendering.js';
+import { ensureWorkspaceDocumentLanguageConfiguration } from '../filesystem/workspace-document-language-configuration.js';
 import {
+  assertWorkItemWorkspaceInitialized,
   createWorkItemDossier,
   type PersistedWorkItemDossier,
 } from '../filesystem/work-item-dossier.js';
@@ -175,17 +178,17 @@ export function serializeWorkItemYml(workItem: WorkItem): string {
   ].join('\n');
 }
 
-function markdownText(value: string | undefined): string {
-  return value === undefined ? '_Not provided._' : value;
+function markdownText(value: string | undefined, provider: DocumentContentProvider): string {
+  return value === undefined ? `_${provider.text('notProvided')}._` : value;
 }
 
-function markdownList(values: string[] | undefined): string {
+function markdownList(values: string[] | undefined, provider: DocumentContentProvider): string {
   return values === undefined || values.length === 0
-    ? '_Not provided._'
+    ? `_${provider.text('notProvided')}._`
     : values.map((value) => `- ${value}`).join('\n');
 }
 
-function buildManifest(workItem: WorkItem): string {
+function buildManifest(workItem: WorkItem, provider: DocumentContentProvider): string {
   const documents = [
     'WORK_ITEM.yml',
     '00_MANIFEST.md',
@@ -197,132 +200,134 @@ function buildManifest(workItem: WorkItem): string {
   const directories = ['context/', 'evidence/', 'snapshots/'];
 
   return [
-    '# Work Item Manifest',
+    `# ${provider.text('manifestTitle')}`,
     '',
-    `- Work Item ID: ${workItem.id}`,
-    `- Rally ID: ${workItem.rallyId}`,
-    `- Type: ${workItem.type}`,
-    `- Status: ${workItem.status}`,
-    `- Created at: ${workItem.createdAt}`,
-    `- Schema version: ${WORK_ITEM_SCHEMA_VERSION}`,
+    '<!-- WS-WORKSPACE-MCP:DOCUMENT_RENDERING_SNAPSHOT schemaVersion=1.0.0 documentLanguage=es-ES renderingProfile=ES_ES_V1 -->',
     '',
-    '## Created documents',
+    `- ${provider.text('workItemId')}: ${workItem.id}`,
+    `- ${provider.text('rallyId')}: ${workItem.rallyId}`,
+    `- ${provider.text('type')}: ${workItem.type}`,
+    `- ${provider.text('status')}: ${workItem.status}`,
+    `- ${provider.text('createdAt')}: ${workItem.createdAt}`,
+    `- ${provider.text('schemaVersion')}: ${WORK_ITEM_SCHEMA_VERSION}`,
     '',
-    '| Path | Initial status |',
+    `## ${provider.text('createdDocuments')}`,
+    '',
+    `| ${provider.text('relativePath')} | ${provider.text('initialStatus')} |`,
     '| --- | --- |',
     ...documents.map((path) => `| ${path} | CREATED |`),
     '',
-    '## Created directories',
+    `## ${provider.text('createdDirectories')}`,
     '',
-    '| Path | Initial status |',
+    `| ${provider.text('relativePath')} | ${provider.text('initialStatus')} |`,
     '| --- | --- |',
     ...directories.map((path) => `| ${path} | CREATED |`),
     '',
   ].join('\n');
 }
 
-function buildFunctionalAnalysis(workItem: WorkItem): string {
+function buildFunctionalAnalysis(workItem: WorkItem, provider: DocumentContentProvider): string {
   return [
-    '# Functional Analysis',
+    `# ${provider.text('functionalAnalysis')}`,
     '',
     `## ${workItem.title}`,
     '',
-    `- Work Item ID: ${workItem.id}`,
-    `- Rally ID: ${workItem.rallyId}`,
-    `- Type: ${workItem.type}`,
-    `- Status: ${workItem.status}`,
+    `- ${provider.text('workItemId')}: ${workItem.id}`,
+    `- ${provider.text('rallyId')}: ${workItem.rallyId}`,
+    `- ${provider.text('type')}: ${workItem.type}`,
+    `- ${provider.text('status')}: ${workItem.status}`,
     '',
-    '## Functional definition',
+    `## ${provider.text('functionalDefinition')}`,
     '',
     workItem.functional.definition,
     '',
-    '## Acceptance criteria',
+    `## ${provider.text('acceptanceCriteria')}`,
     '',
-    markdownList(workItem.functional.acceptanceCriteria),
+    markdownList(workItem.functional.acceptanceCriteria, provider),
     '',
-    '## Additional business information',
+    `## ${provider.text('additionalBusinessInformation')}`,
     '',
-    markdownText(workItem.business?.additionalInformation),
+    markdownText(workItem.business?.additionalInformation, provider),
     '',
-    '## Initially related components',
+    `## ${provider.text('initiallyRelatedComponents')}`,
     '',
-    markdownList(workItem.initialScope.relatedComponents),
+    markdownList(workItem.initialScope.relatedComponents, provider),
     '',
-    '## Salesforce context',
+    `## ${provider.text('salesforceContext')}`,
     '',
-    `- Development alias: ${workItem.salesforce.developmentAlias}`,
+    `- ${provider.text('developmentAlias')}: ${workItem.salesforce.developmentAlias}`,
     '',
-    '## Responsibility',
+    `## ${provider.text('responsibility')}`,
     '',
-    markdownText(workItem.responsibility?.responsiblePerson),
+    markdownText(workItem.responsibility?.responsiblePerson, provider),
     '',
-    '## Dates',
+    `## ${provider.text('dates')}`,
     '',
-    `- Started at: ${workItem.dates.startedAt}`,
-    `- Planned completion at: ${markdownText(workItem.dates.plannedCompletionAt)}`,
+    `- ${provider.text('startedAt')}: ${workItem.dates.startedAt}`,
+    `- ${provider.text('plannedCompletionAt')}: ${markdownText(workItem.dates.plannedCompletionAt, provider)}`,
     '',
   ].join('\n');
 }
 
-function buildAiContext(workItem: WorkItem): string {
+function buildAiContext(workItem: WorkItem, provider: DocumentContentProvider): string {
   return [
-    '# AI Context',
+    `# ${provider.text('aiContext')}`,
     '',
-    '## Work Item',
+    `## ${provider.text('workItem')}`,
     '',
     `- ID: ${workItem.id}`,
-    `- Rally ID: ${workItem.rallyId}`,
-    `- Type: ${workItem.type}`,
-    `- Current status: ${workItem.status}`,
+    `- ${provider.text('rallyId')}: ${workItem.rallyId}`,
+    `- ${provider.text('type')}: ${workItem.type}`,
+    `- ${provider.text('currentStatus')}: ${workItem.status}`,
     '',
-    '## Known functional context',
+    `## ${provider.text('knownFunctionalContext')}`,
     '',
     workItem.functional.definition,
     '',
-    '## Initial scope',
+    `## ${provider.text('initialScope')}`,
     '',
-    markdownList(workItem.initialScope.relatedComponents),
+    markdownList(workItem.initialScope.relatedComponents, provider),
     '',
-    '## Current boundary',
+    `## ${provider.text('currentBoundary')}`,
     '',
-    'No technical implementation decisions have been recorded yet.',
+    provider.text('noTechnicalDecisions'),
     '',
   ].join('\n');
 }
 
-function buildAiRules(): string {
+function buildAiRules(provider: DocumentContentProvider): string {
   return [
-    '# AI Rules',
+    `# ${provider.text('aiRules')}`,
     '',
-    '- Do not invent requirements or missing business information.',
-    '- Preserve traceability to the Work Item and its supplied context.',
-    '- Record relevant decisions in the dossier when the appropriate lifecycle tool exists.',
-    '- Do not modify files outside this Work Item dossier.',
-    '- Keep dossier documents current as verified information becomes available.',
-    '',
-  ].join('\n');
-}
-
-function buildNextTask(): string {
-  return [
-    '# Next Task',
-    '',
-    'Review the supplied functional context and identify open questions before making technical decisions.',
+    `- ${provider.text('aiRuleOne')}`,
+    `- ${provider.text('aiRuleTwo')}`,
+    `- ${provider.text('aiRuleThree')}`,
+    `- ${provider.text('aiRuleFour')}`,
+    `- ${provider.text('aiRuleFive')}`,
     '',
   ].join('\n');
 }
 
-function buildDossier(workItem: WorkItem) {
+function buildNextTask(provider: DocumentContentProvider): string {
+  return [`# ${provider.text('nextTask')}`, '', provider.text('nextTaskInstruction'), ''].join(
+    '\n',
+  );
+}
+
+function buildDossier(workItem: WorkItem, provider: DocumentContentProvider) {
   return {
     id: workItem.id,
     directories: ['context', 'evidence', 'snapshots'],
     files: [
       { relativePath: 'WORK_ITEM.yml', content: serializeWorkItemYml(workItem) },
-      { relativePath: '00_MANIFEST.md', content: buildManifest(workItem) },
-      { relativePath: '01_FUNCTIONAL_ANALYSIS.md', content: buildFunctionalAnalysis(workItem) },
-      { relativePath: 'context/AI_CONTEXT.md', content: buildAiContext(workItem) },
-      { relativePath: 'context/AI_RULES.md', content: buildAiRules() },
-      { relativePath: 'context/NEXT_TASK.md', content: buildNextTask() },
+      { relativePath: '00_MANIFEST.md', content: buildManifest(workItem, provider) },
+      {
+        relativePath: '01_FUNCTIONAL_ANALYSIS.md',
+        content: buildFunctionalAnalysis(workItem, provider),
+      },
+      { relativePath: 'context/AI_CONTEXT.md', content: buildAiContext(workItem, provider) },
+      { relativePath: 'context/AI_RULES.md', content: buildAiRules(provider) },
+      { relativePath: 'context/NEXT_TASK.md', content: buildNextTask(provider) },
     ],
   };
 }
@@ -387,7 +392,12 @@ export class WorkItemCreationService {
       updatedAt: now,
     };
 
-    const dossier = await createWorkItemDossier(this.config.workspaceRoot, buildDossier(workItem));
+    await assertWorkItemWorkspaceInitialized(this.config.workspaceRoot);
+    await ensureWorkspaceDocumentLanguageConfiguration(this.config.workspaceRoot);
+    const dossier = await createWorkItemDossier(
+      this.config.workspaceRoot,
+      buildDossier(workItem, providerForDocumentLanguage('es-ES')),
+    );
     return toCreateWorkItemResult(workItem, dossier);
   }
 }

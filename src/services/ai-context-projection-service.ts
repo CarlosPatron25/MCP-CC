@@ -1,9 +1,16 @@
 import type { WorkItem } from '../domain/work-item.js';
 import type { DocumentLifecycleMetadata } from '../domain/work-item-document.js';
+import {
+  BaselineEnglishDocumentContentProviderV1,
+  type DocumentContentProvider,
+} from './document-rendering.js';
 
-function markdownList(values: readonly string[] | undefined): string {
+function markdownList(
+  values: readonly string[] | undefined,
+  provider: DocumentContentProvider,
+): string {
   return values === undefined || values.length === 0
-    ? '_Not provided._'
+    ? `_${provider.text('notProvided')}._`
     : [...values]
         .map((value) => value.trim())
         .filter((value) => value.length > 0)
@@ -22,35 +29,36 @@ export class AIContextProjectionService {
     functionalAnalysis: string,
     lifecycleMetadata: readonly DocumentLifecycleMetadata[],
     auditSummary?: string,
+    provider: DocumentContentProvider = new BaselineEnglishDocumentContentProviderV1(),
   ): string {
     const inventory = [...lifecycleMetadata].sort((left, right) =>
       left.relativePath.localeCompare(right.relativePath),
     );
 
     const m3Projection = [
-      '# AI Context',
+      `# ${provider.text('aiContext')}`,
       '',
-      '## Work Item',
+      `## ${provider.text('workItem')}`,
       '',
       `- ID: ${workItem.id}`,
-      `- Rally ID: ${workItem.rallyId}`,
-      `- Title: ${workItem.title}`,
-      `- Type: ${workItem.type}`,
-      `- Current status: ${workItem.status}`,
-      `- Started at: ${workItem.dates.startedAt}`,
-      `- Planned completion at: ${workItem.dates.plannedCompletionAt ?? '_Not provided._'}`,
+      `- ${provider.text('rallyId')}: ${workItem.rallyId}`,
+      `- ${provider.text('title')}: ${workItem.title}`,
+      `- ${provider.text('type')}: ${workItem.type}`,
+      `- ${provider.text('currentStatus')}: ${workItem.status}`,
+      `- ${provider.text('startedAt')}: ${workItem.dates.startedAt}`,
+      `- ${provider.text('plannedCompletionAt')}: ${workItem.dates.plannedCompletionAt ?? `_${provider.text('notProvided')}._`}`,
       '',
-      '## Initial scope',
+      `## ${provider.text('initialScope')}`,
       '',
-      markdownList(workItem.initialScope.relatedComponents),
+      markdownList(workItem.initialScope.relatedComponents, provider),
       '',
-      '## Persisted functional analysis',
+      `## ${provider.text('persistedFunctionalAnalysis')}`,
       '',
       functionalAnalysis.trim(),
       '',
-      '## Managed document lifecycle',
+      `## ${provider.text('managedDocumentLifecycle')}`,
       '',
-      '| Document type | Relative path | Status | Revision | Content type |',
+      `| ${provider.text('documentType')} | ${provider.text('relativePath')} | ${provider.text('status')} | ${provider.text('revision')} | ${provider.text('contentType')} |`,
       '| --- | --- | --- | --- | --- |',
       ...inventory.map(
         (entry) =>

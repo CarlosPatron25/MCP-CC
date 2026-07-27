@@ -17,6 +17,7 @@ import {
   AuditTrackingNotInitializedError,
 } from '../errors/workspace-error.js';
 import type { AuditContextSummaryService } from './audit-context-summary-service.js';
+import { providerForManifest } from './document-rendering.js';
 import type { AuditProjectionService } from './audit-projection-service.js';
 import type { AuditLedgerService } from './audit-ledger-service.js';
 import type { M4ManifestInventoryService } from './m4-manifest-inventory-service.js';
@@ -297,7 +298,9 @@ export class WorkItemAuditService {
         return { result: undefined };
       }
       const ledger = this.validateInitializedSnapshot(snapshot);
-      return { result: this.contextSummary.project(ledger) };
+      return {
+        result: this.contextSummary.project(ledger, providerForManifest(snapshot.manifest)),
+      };
     });
   }
 
@@ -346,7 +349,10 @@ export class WorkItemAuditService {
       throw new AuditLedgerCorruptError('The audit tracking data cannot be read safely.');
     }
     const ledger = this.ledgerService.parse(snapshot.tracking.artifacts.ledger);
-    const projected = this.projectionService.project(ledger);
+    const projected = this.projectionService.project(
+      ledger,
+      providerForManifest(snapshot.manifest),
+    );
     if (
       snapshot.tracking.artifacts.decisions !== projected.decisions ||
       snapshot.tracking.artifacts.checkpoints !== projected.checkpoints ||
@@ -368,7 +374,7 @@ export class WorkItemAuditService {
   }
 
   private buildCommitArtifacts(manifest: string, ledger: AuditLedger): AuditCommitArtifacts {
-    const projections = this.projectionService.project(ledger);
+    const projections = this.projectionService.project(ledger, providerForManifest(manifest));
     const inventory = this.manifestInventory.fromLedger(ledger, ledger.updatedAt);
     return {
       ledger: this.ledgerService.serialize(ledger),

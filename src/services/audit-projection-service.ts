@@ -7,11 +7,10 @@ import type {
   TestExecution,
   TestPlanVersion,
 } from '../domain/work-item-audit.js';
-
-const GENERATED_NOTICE = '<!-- SYSTEM-GENERATED AUDIT PROJECTION. DO NOT EDIT DIRECTLY. -->';
-const PROTECTED_NOTICE =
-  '> Protected derived projection. The structured audit ledger is the authoritative record.';
-const EMPTY_VALUE = '_Not provided._';
+import {
+  BaselineEnglishDocumentContentProviderV1,
+  type DocumentContentProvider,
+} from './document-rendering.js';
 
 export interface AuditMarkdownProjections {
   decisions: string;
@@ -63,19 +62,34 @@ function markdownCode(value: string): string {
   return normalized.includes('`') ? markdownInline(normalized) : `\`${normalized}\``;
 }
 
-function optionalText(value: string | undefined): string {
-  return value === undefined || value.trim().length === 0 ? EMPTY_VALUE : markdownInline(value);
+function optionalText(value: string | undefined, provider: DocumentContentProvider): string {
+  return value === undefined || value.trim().length === 0
+    ? `_${provider.text('notProvided')}._`
+    : markdownInline(value);
 }
 
-function identifierList(values: readonly string[] | undefined): string {
+function identifierList(
+  values: readonly string[] | undefined,
+  provider: DocumentContentProvider,
+): string {
   if (values === undefined || values.length === 0) {
-    return EMPTY_VALUE;
+    return `_${provider.text('notProvided')}._`;
   }
   return [...values].sort(compareText).map(markdownCode).join(', ');
 }
 
-function renderDocument(title: string, sections: readonly MarkdownSection[]): string {
-  const lines = [GENERATED_NOTICE, '', `# ${title}`, '', PROTECTED_NOTICE];
+function renderDocument(
+  title: string,
+  sections: readonly MarkdownSection[],
+  provider: DocumentContentProvider,
+): string {
+  const lines = [
+    provider.text('auditGeneratedNotice'),
+    '',
+    `# ${title}`,
+    '',
+    provider.text('auditProtectedNotice'),
+  ];
 
   for (const section of sections) {
     lines.push('', `## ${section.heading}`, '');
@@ -146,21 +160,25 @@ function currentDecisions(decisions: readonly Decision[]): Decision[] {
     .sort(compareRecordedDescending);
 }
 
-function renderDecision(decision: Decision, status: string): string {
+function renderDecision(
+  decision: Decision,
+  status: string,
+  provider: DocumentContentProvider,
+): string {
   return [
     `### ${markdownInline(decision.title)}`,
     '',
-    `- Entry ID: ${markdownCode(decision.id)}`,
-    `- Kind: ${markdownCode(decision.kind)}`,
-    `- Status: ${markdownCode(status)}`,
-    `- Decision: ${markdownInline(decision.decision)}`,
-    `- Rationale: ${markdownInline(decision.rationale)}`,
-    `- Declared actor: ${markdownInline(decision.declaredActor)}`,
-    `- Recorded at: ${markdownInline(decision.recordedAt)}`,
+    `- ${provider.text('entryId')}: ${markdownCode(decision.id)}`,
+    `- ${provider.text('kind')}: ${markdownCode(decision.kind)}`,
+    `- ${provider.text('status')}: ${markdownCode(status)}`,
+    `- ${provider.text('decision')}: ${markdownInline(decision.decision)}`,
+    `- ${provider.text('rationale')}: ${markdownInline(decision.rationale)}`,
+    `- ${provider.text('declaredActor')}: ${markdownInline(decision.declaredActor)}`,
+    `- ${provider.text('recordedAt')}: ${markdownInline(decision.recordedAt)}`,
     ...(decision.relatedDecisionId === undefined
       ? []
-      : [`- Related decision: ${markdownCode(decision.relatedDecisionId)}`]),
-    `- Evidence references: ${identifierList(decision.evidenceReferenceIds)}`,
+      : [`- ${provider.text('relatedDecision')}: ${markdownCode(decision.relatedDecisionId)}`]),
+    `- ${provider.text('evidenceReferenceIds')}: ${identifierList(decision.evidenceReferenceIds, provider)}`,
   ].join('\n');
 }
 
@@ -179,19 +197,25 @@ function currentCheckpoints(checkpoints: readonly Checkpoint[]): Checkpoint[] {
     .sort(compareRecordedDescending);
 }
 
-function renderCheckpoint(checkpoint: Checkpoint, status: 'CURRENT' | 'CORRECTED'): string {
+function renderCheckpoint(
+  checkpoint: Checkpoint,
+  status: 'CURRENT' | 'CORRECTED',
+  provider: DocumentContentProvider,
+): string {
   return [
     `### ${checkpoint.kind} — ${markdownCode(checkpoint.id)}`,
     '',
-    `- Status: ${markdownCode(status)}`,
-    `- Summary: ${markdownInline(checkpoint.summary)}`,
-    `- Declared actor: ${markdownInline(checkpoint.declaredActor)}`,
-    `- Recorded at: ${markdownInline(checkpoint.recordedAt)}`,
+    `- ${provider.text('status')}: ${markdownCode(status)}`,
+    `- ${provider.text('summary')}: ${markdownInline(checkpoint.summary)}`,
+    `- ${provider.text('declaredActor')}: ${markdownInline(checkpoint.declaredActor)}`,
+    `- ${provider.text('recordedAt')}: ${markdownInline(checkpoint.recordedAt)}`,
     ...(checkpoint.correctsCheckpointId === undefined
       ? []
-      : [`- Corrects checkpoint: ${markdownCode(checkpoint.correctsCheckpointId)}`]),
-    `- Related decisions: ${identifierList(checkpoint.relatedDecisionIds)}`,
-    `- Evidence references: ${identifierList(checkpoint.evidenceReferenceIds)}`,
+      : [
+          `- ${provider.text('correctsCheckpoint')}: ${markdownCode(checkpoint.correctsCheckpointId)}`,
+        ]),
+    `- ${provider.text('relatedDecisions')}: ${identifierList(checkpoint.relatedDecisionIds, provider)}`,
+    `- ${provider.text('evidenceReferenceIds')}: ${identifierList(checkpoint.evidenceReferenceIds, provider)}`,
   ].join('\n');
 }
 
@@ -228,14 +252,14 @@ function executionsForCase(
     .sort(compareRecordedDescending);
 }
 
-function renderExecution(execution: TestExecution): string {
+function renderExecution(execution: TestExecution, provider: DocumentContentProvider): string {
   return [
     `- ${markdownCode(execution.outcome)} at ${markdownInline(execution.recordedAt)}`,
-    `  - Execution ID: ${markdownCode(execution.id)}`,
-    `  - Method: ${markdownCode(execution.executionMethod)}`,
-    `  - Summary: ${markdownInline(execution.summary)}`,
-    `  - Declared actor: ${markdownInline(execution.declaredActor)}`,
-    `  - Evidence references: ${identifierList(execution.evidenceReferenceIds)}`,
+    `  - ${provider.text('executionId')}: ${markdownCode(execution.id)}`,
+    `  - ${provider.text('method')}: ${markdownCode(execution.executionMethod)}`,
+    `  - ${provider.text('summary')}: ${markdownInline(execution.summary)}`,
+    `  - ${provider.text('declaredActor')}: ${markdownInline(execution.declaredActor)}`,
+    `  - ${provider.text('evidenceReferenceIds')}: ${identifierList(execution.evidenceReferenceIds, provider)}`,
   ].join('\n');
 }
 
@@ -243,21 +267,22 @@ function renderTestCase(
   testCase: TestCaseDefinition,
   plan: TestPlanVersion,
   executions: readonly TestExecution[],
+  provider: DocumentContentProvider,
 ): string {
   const caseExecutions = executionsForCase(testCase, plan, executions);
   return [
     `#### ${markdownInline(testCase.title)}`,
     '',
-    `- Test case ID: ${markdownCode(testCase.testCaseId)}`,
-    `- Objective: ${markdownInline(testCase.objective)}`,
-    `- Verification method: ${markdownCode(testCase.verificationMethod)}`,
-    `- Expected outcome: ${markdownInline(testCase.expectedOutcome)}`,
+    `- ${provider.text('testCaseId')}: ${markdownCode(testCase.testCaseId)}`,
+    `- ${provider.text('objective')}: ${markdownInline(testCase.objective)}`,
+    `- ${provider.text('verificationMethod')}: ${markdownCode(testCase.verificationMethod)}`,
+    `- ${provider.text('expectedOutcome')}: ${markdownInline(testCase.expectedOutcome)}`,
     '',
-    '##### Executions',
+    `##### ${provider.text('executions')}`,
     '',
     caseExecutions.length === 0
-      ? '_No executions recorded._'
-      : caseExecutions.map(renderExecution).join('\n\n'),
+      ? `_${provider.text('noExecutionsRecorded')}_`
+      : caseExecutions.map((execution) => renderExecution(execution, provider)).join('\n\n'),
   ].join('\n');
 }
 
@@ -265,62 +290,71 @@ function renderPlan(
   plan: TestPlanVersion,
   executions: readonly TestExecution[],
   status: 'ACTIVE' | 'HISTORICAL',
+  provider: DocumentContentProvider,
 ): string {
   const testCases = orderedTestCases(plan.testCases);
   return [
-    `### Plan revision ${plan.planRevision}`,
+    `### ${provider.text('planRevision')} ${plan.planRevision}`,
     '',
-    `- Version entry ID: ${markdownCode(plan.id)}`,
-    `- Plan ID: ${markdownCode(plan.planId)}`,
-    `- Status: ${markdownCode(status)}`,
-    `- Purpose: ${markdownInline(plan.purpose)}`,
-    `- Declared actor: ${markdownInline(plan.declaredActor)}`,
-    `- Recorded at: ${markdownInline(plan.recordedAt)}`,
+    `- ${provider.text('versionEntryId')}: ${markdownCode(plan.id)}`,
+    `- ${provider.text('planId')}: ${markdownCode(plan.planId)}`,
+    `- ${provider.text('status')}: ${markdownCode(status)}`,
+    `- ${provider.text('purpose')}: ${markdownInline(plan.purpose)}`,
+    `- ${provider.text('declaredActor')}: ${markdownInline(plan.declaredActor)}`,
+    `- ${provider.text('recordedAt')}: ${markdownInline(plan.recordedAt)}`,
     '',
-    '#### Test cases',
+    `#### ${provider.text('testCases')}`,
     '',
     testCases.length === 0
-      ? '_No test cases defined._'
-      : testCases.map((testCase) => renderTestCase(testCase, plan, executions)).join('\n\n'),
+      ? `_${provider.text('noTestCasesDefined')}_`
+      : testCases
+          .map((testCase) => renderTestCase(testCase, plan, executions, provider))
+          .join('\n\n'),
   ].join('\n');
 }
 
 function renderActivePlanSummary(
   plan: TestPlanVersion,
   executions: readonly TestExecution[],
+  provider: DocumentContentProvider,
 ): string {
   const caseLines = orderedTestCases(plan.testCases).map((testCase) => {
     const latest = executionsForCase(testCase, plan, executions).at(0);
     const result =
       latest === undefined
-        ? '_Not run._'
+        ? `_${provider.text('noTestCaseRun')}_`
         : `${markdownCode(latest.outcome)} at ${markdownInline(latest.recordedAt)} (${markdownCode(latest.id)})`;
     return `- ${markdownInline(testCase.title)} (${markdownCode(testCase.testCaseId)}): ${result}`;
   });
 
   return [
-    `### Revision ${plan.planRevision}`,
+    `### ${provider.text('revision')} ${plan.planRevision}`,
     '',
-    `- Plan ID: ${markdownCode(plan.planId)}`,
-    `- Purpose: ${markdownInline(plan.purpose)}`,
-    `- Recorded at: ${markdownInline(plan.recordedAt)}`,
+    `- ${provider.text('planId')}: ${markdownCode(plan.planId)}`,
+    `- ${provider.text('purpose')}: ${markdownInline(plan.purpose)}`,
+    `- ${provider.text('recordedAt')}: ${markdownInline(plan.recordedAt)}`,
     '',
-    '### Latest result per active test case',
+    `### ${provider.text('latestResultPerActiveTestCase')}`,
     '',
-    caseLines.length === 0 ? '_No active test cases._' : caseLines.join('\n'),
+    caseLines.length === 0
+      ? `_${provider.text('noActiveTestCasesProjection')}_`
+      : caseLines.join('\n'),
   ].join('\n');
 }
 
-function renderEvidenceReference(reference: EvidenceReference): string {
+function renderEvidenceReference(
+  reference: EvidenceReference,
+  provider: DocumentContentProvider,
+): string {
   return [
     `### ${markdownInline(reference.label)}`,
     '',
-    `- Evidence reference ID: ${markdownCode(reference.id)}`,
-    `- Description: ${optionalText(reference.description)}`,
-    `- Logical path: ${markdownCode(reference.logicalPath)}`,
-    `- Declared actor: ${markdownInline(reference.declaredActor)}`,
-    `- Recorded at: ${markdownInline(reference.recordedAt)}`,
-    '- Validation: Metadata reference only; file existence and content were not checked.',
+    `- ${provider.text('evidenceReferenceId')}: ${markdownCode(reference.id)}`,
+    `- ${provider.text('description')}: ${optionalText(reference.description, provider)}`,
+    `- ${provider.text('logicalPath')}: ${markdownCode(reference.logicalPath)}`,
+    `- ${provider.text('declaredActor')}: ${markdownInline(reference.declaredActor)}`,
+    `- ${provider.text('recordedAt')}: ${markdownInline(reference.recordedAt)}`,
+    `- ${provider.text('validation')}: ${provider.text('metadataReferenceOnly')}`,
   ].join('\n');
 }
 
@@ -329,87 +363,131 @@ function renderEvidenceReference(reference: EvidenceReference): string {
  * from one already validated audit-ledger snapshot.
  */
 export class AuditProjectionService {
-  public project(ledger: AuditLedger): AuditMarkdownProjections {
+  public project(
+    ledger: AuditLedger,
+    provider: DocumentContentProvider = new BaselineEnglishDocumentContentProviderV1(),
+  ): AuditMarkdownProjections {
     return {
-      decisions: this.projectDecisions(ledger),
-      checkpoints: this.projectCheckpoints(ledger),
-      testPlan: this.projectTesting(ledger),
-      evidenceReferences: this.projectEvidenceReferences(ledger),
+      decisions: this.projectDecisions(ledger, provider),
+      checkpoints: this.projectCheckpoints(ledger, provider),
+      testPlan: this.projectTesting(ledger, provider),
+      evidenceReferences: this.projectEvidenceReferences(ledger, provider),
     };
   }
 
-  public projectDecisions(ledger: AuditLedger): string {
-    return renderDocument('Decisions', [
-      {
-        heading: 'Current decisions',
-        blocks: currentDecisions(ledger.decisions).map((decision) =>
-          renderDecision(decision, 'CURRENT'),
-        ),
-        emptyText: '_No current decisions recorded._',
-      },
-      {
-        heading: 'Append-only decision history',
-        blocks: [...ledger.decisions]
-          .sort(compareRecordedAscending)
-          .map((decision) => renderDecision(decision, decisionStatus(decision, ledger.decisions))),
-        emptyText: '_No decision entries recorded._',
-      },
-    ]);
-  }
-
-  public projectCheckpoints(ledger: AuditLedger): string {
-    const corrected = correctedCheckpointIds(ledger.checkpoints);
-    return renderDocument('Checkpoints', [
-      {
-        heading: 'Current checkpoints',
-        blocks: currentCheckpoints(ledger.checkpoints).map((checkpoint) =>
-          renderCheckpoint(checkpoint, 'CURRENT'),
-        ),
-        emptyText: '_No current checkpoints recorded._',
-      },
-      {
-        heading: 'Append-only checkpoint history',
-        blocks: [...ledger.checkpoints]
-          .sort(compareRecordedAscending)
-          .map((checkpoint) =>
-            renderCheckpoint(checkpoint, corrected.has(checkpoint.id) ? 'CORRECTED' : 'CURRENT'),
+  public projectDecisions(
+    ledger: AuditLedger,
+    provider: DocumentContentProvider = new BaselineEnglishDocumentContentProviderV1(),
+  ): string {
+    return renderDocument(
+      provider.text('decisions'),
+      [
+        {
+          heading: provider.text('currentDecisions'),
+          blocks: currentDecisions(ledger.decisions).map((decision) =>
+            renderDecision(decision, 'CURRENT', provider),
           ),
-        emptyText: '_No checkpoint entries recorded._',
-      },
-    ]);
+          emptyText: `_${provider.text('noCurrentDecisions')}_`,
+        },
+        {
+          heading: provider.text('appendOnlyDecisionHistory'),
+          blocks: [...ledger.decisions]
+            .sort(compareRecordedAscending)
+            .map((decision) =>
+              renderDecision(decision, decisionStatus(decision, ledger.decisions), provider),
+            ),
+          emptyText: `_${provider.text('noDecisionEntries')}_`,
+        },
+      ],
+      provider,
+    );
   }
 
-  public projectTesting(ledger: AuditLedger): string {
+  public projectCheckpoints(
+    ledger: AuditLedger,
+    provider: DocumentContentProvider = new BaselineEnglishDocumentContentProviderV1(),
+  ): string {
+    const corrected = correctedCheckpointIds(ledger.checkpoints);
+    return renderDocument(
+      provider.text('checkpoints'),
+      [
+        {
+          heading: provider.text('currentCheckpoints'),
+          blocks: currentCheckpoints(ledger.checkpoints).map((checkpoint) =>
+            renderCheckpoint(checkpoint, 'CURRENT', provider),
+          ),
+          emptyText: `_${provider.text('noCurrentCheckpoints')}_`,
+        },
+        {
+          heading: provider.text('appendOnlyCheckpointHistory'),
+          blocks: [...ledger.checkpoints]
+            .sort(compareRecordedAscending)
+            .map((checkpoint) =>
+              renderCheckpoint(
+                checkpoint,
+                corrected.has(checkpoint.id) ? 'CORRECTED' : 'CURRENT',
+                provider,
+              ),
+            ),
+          emptyText: `_${provider.text('noCheckpointEntries')}_`,
+        },
+      ],
+      provider,
+    );
+  }
+
+  public projectTesting(
+    ledger: AuditLedger,
+    provider: DocumentContentProvider = new BaselineEnglishDocumentContentProviderV1(),
+  ): string {
     const active = activeTestPlan(ledger.testPlans);
     const orderedPlans = [...ledger.testPlans].sort(
       (left, right) => right.planRevision - left.planRevision || compareText(right.id, left.id),
     );
-    return renderDocument('Test Plan and Executions', [
-      {
-        heading: 'Active test plan',
-        blocks:
-          active === undefined ? [] : [renderActivePlanSummary(active, ledger.testExecutions)],
-        emptyText: '_No test plan has been defined._',
-      },
-      {
-        heading: 'Immutable plan-version history',
-        blocks: orderedPlans.map((plan) =>
-          renderPlan(plan, ledger.testExecutions, plan.id === active?.id ? 'ACTIVE' : 'HISTORICAL'),
-        ),
-        emptyText: '_No plan versions recorded._',
-      },
-    ]);
+    return renderDocument(
+      provider.text('testPlanAndExecutions'),
+      [
+        {
+          heading: provider.text('activeTestPlan'),
+          blocks:
+            active === undefined
+              ? []
+              : [renderActivePlanSummary(active, ledger.testExecutions, provider)],
+          emptyText: `_${provider.text('noTestPlanDefined')}_`,
+        },
+        {
+          heading: provider.text('immutablePlanVersionHistory'),
+          blocks: orderedPlans.map((plan) =>
+            renderPlan(
+              plan,
+              ledger.testExecutions,
+              plan.id === active?.id ? 'ACTIVE' : 'HISTORICAL',
+              provider,
+            ),
+          ),
+          emptyText: `_${provider.text('noPlanVersions')}_`,
+        },
+      ],
+      provider,
+    );
   }
 
-  public projectEvidenceReferences(ledger: AuditLedger): string {
-    return renderDocument('Evidence References', [
-      {
-        heading: 'Registered references',
-        blocks: [...ledger.evidenceReferences]
-          .sort(compareRecordedDescending)
-          .map(renderEvidenceReference),
-        emptyText: '_No evidence references registered._',
-      },
-    ]);
+  public projectEvidenceReferences(
+    ledger: AuditLedger,
+    provider: DocumentContentProvider = new BaselineEnglishDocumentContentProviderV1(),
+  ): string {
+    return renderDocument(
+      provider.text('evidenceReferences'),
+      [
+        {
+          heading: provider.text('registeredReferences'),
+          blocks: [...ledger.evidenceReferences]
+            .sort(compareRecordedDescending)
+            .map((reference) => renderEvidenceReference(reference, provider)),
+          emptyText: `_${provider.text('noEvidenceReferences')}_`,
+        },
+      ],
+      provider,
+    );
   }
 }

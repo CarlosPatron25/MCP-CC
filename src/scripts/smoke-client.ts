@@ -1,8 +1,11 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
+
+import { WORKSPACE_DOCUMENT_CONFIGURATION_CONTENT } from '../filesystem/workspace-document-language-configuration.js';
+import { DOCUMENT_RENDERING_MARKER } from '../services/document-rendering.js';
 
 const ABSOLUTE_PATH_PATTERN =
   /(?:^|[^\p{L}\p{N}._#:/\\-])(?:file:[\\/]+|[a-z]:[\\/]|[\\/]{2}[^\s]|\\[^\\\s]+\\[^\s]|\/(?!\/)[^\s])|:(?:\\(?!\\)|\/(?!\/))[^\s]/iu;
@@ -116,6 +119,13 @@ async function run(): Promise<void> {
       arguments: {},
     });
     requireToolSuccess(initialization, 'initialize_workspace');
+    requireCondition(
+      (await readFile(
+        join(workspaceRoot, '.ws-workspace', 'config', 'workspace-config.json'),
+        'utf8',
+      )) === WORKSPACE_DOCUMENT_CONFIGURATION_CONTENT,
+      'Workspace initialization did not create the canonical document-language configuration.',
+    );
     const creation = await client.callTool({
       name: 'create_work_item',
       arguments: {
@@ -167,6 +177,21 @@ async function run(): Promise<void> {
       },
     });
     requireToolSuccess(documentUpdate, 'update_work_item_document');
+    const updatedCurrentState = await client.callTool({
+      name: 'get_work_item_document',
+      arguments: { workItemId, documentType: 'CURRENT_STATE' },
+    });
+    requireToolSuccess(updatedCurrentState, 'get_work_item_document updated CURRENT_STATE');
+    const updatedDocument = nestedValue(parsedResult(updatedCurrentState), 'document');
+    requireCondition(
+      typeof updatedDocument === 'object' &&
+        updatedDocument !== null &&
+        'content' in updatedDocument &&
+        typeof updatedDocument.content === 'string' &&
+        updatedDocument.content.includes('## Contexto de implementación conocido') &&
+        updatedDocument.content.includes('Smoke test exercised the controlled document lifecycle.'),
+      'M3 did not localize system text while preserving the supplied payload literally.',
+    );
     const aiContextBeforeM4 = await client.callTool({
       name: 'get_work_item_document',
       arguments: { workItemId, documentType: 'AI_CONTEXT' },
@@ -348,8 +373,10 @@ async function run(): Promise<void> {
       );
       if (trackingType === 'TESTING') {
         requireCondition(
-          typeof viewPayload.content === 'string' && viewPayload.content.includes(testExecutionId),
-          'The TESTING projection did not contain the recorded execution.',
+          typeof viewPayload.content === 'string' &&
+            viewPayload.content.includes('Plan de pruebas activo') &&
+            viewPayload.content.includes(testExecutionId),
+          'The TESTING projection did not localize system text or contain the recorded execution.',
         );
       }
       trackingViews.push(view);
@@ -374,7 +401,7 @@ async function run(): Promise<void> {
     });
     requireToolSuccess(refreshedAiContext, 'get_work_item_document refreshed AI_CONTEXT');
     requireCondition(
-      textContent(refreshedAiContext).includes('Milestone 4 Audit Summary'),
+      textContent(refreshedAiContext).includes('Resumen de auditoría de Milestone 4'),
       'Explicit AI-context refresh did not include the bounded M4 summary.',
     );
     const manifest = await client.callTool({
@@ -384,9 +411,10 @@ async function run(): Promise<void> {
     requireToolSuccess(manifest, 'get_work_item_document MANIFEST');
     const manifestText = textContent(manifest);
     requireCondition(
-      (manifestText.match(/## Milestone 4 Audit Inventory/g) ?? []).length === 1 &&
+      manifestText.includes(DOCUMENT_RENDERING_MARKER) &&
+        (manifestText.match(/## Milestone 4 Audit Inventory/g) ?? []).length === 1 &&
         (manifestText.match(/## Document Lifecycle Inventory/g) ?? []).length === 1,
-      'The shared manifest inventories were not preserved.',
+      'The rendering snapshot or shared manifest inventories were not preserved.',
     );
     const idempotentRetry = await client.callTool({
       name: 'register_evidence_reference',
@@ -478,6 +506,7 @@ async function run(): Promise<void> {
       documentInitialization,
       currentState,
       documentUpdate,
+      updatedCurrentState,
       trackingInitialization,
       evidence,
       decision,

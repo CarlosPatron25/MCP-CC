@@ -206,13 +206,13 @@ describe('WorkItemCreationService', () => {
     });
     await expect(
       readFile(join(workItemDirectory, 'context', 'AI_CONTEXT.md'), 'utf8'),
-    ).resolves.toContain('# AI Context');
+    ).resolves.toContain('# Contexto de IA');
     await expect(
       readFile(join(workItemDirectory, 'context', 'AI_RULES.md'), 'utf8'),
-    ).resolves.toContain('Do not invent requirements');
+    ).resolves.toContain('No invente requisitos');
     await expect(
       readFile(join(workItemDirectory, 'context', 'NEXT_TASK.md'), 'utf8'),
-    ).resolves.toContain('before making technical decisions');
+    ).resolves.toContain('antes de tomar decisiones técnicas');
     await expect(stat(join(root, '.ws-workspace', '.staging'))).rejects.toMatchObject({
       code: 'ENOENT',
     });
@@ -242,8 +242,11 @@ describe('WorkItemCreationService', () => {
 
     expect(manifest).toContain('| WORK_ITEM.yml | CREATED |');
     expect(manifest).toContain('| snapshots/ | CREATED |');
+    expect(manifest).toContain(
+      '<!-- WS-WORKSPACE-MCP:DOCUMENT_RENDERING_SNAPSHOT schemaVersion=1.0.0 documentLanguage=es-ES renderingProfile=ES_ES_V1 -->',
+    );
     expect(analysis).toContain('A user can create an initial Work Item dossier.');
-    expect(analysis).toContain('_Not provided._');
+    expect(analysis).toContain('_No proporcionado._');
   });
 
   it('requires the workspace to be initialized before creation', async () => {

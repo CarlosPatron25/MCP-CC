@@ -1,0 +1,106 @@
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/ARCHITECTURE.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/ARCHITECTURE_EVOLUTION_POST_M3.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/CURRENT_STATE.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/DATA_MODEL.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/DECISIONS.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/DEVELOPMENT.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/FUNCTIONAL_REQUIREMENTS.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/PRODUCT_DEFINITION.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/ROADMAP.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/SECURITY.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/errors/workspace-error.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/filesystem/work-item-dossier.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/filesystem/workspace-initializer.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/scripts/smoke-client.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/ai-context-projection-service.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/audit-context-summary-service.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/audit-projection-service.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/document-template-service.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/work-item-audit-service.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/work-item-creation-service.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/services/work-item-document-service.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/mcp-m4.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/work-item-audit-service.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/work-item-creation-service.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/work-item-document-service.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/workspace-initializer.test.ts', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/README.md b/README.md[m
+[1mindex 19143c5..d4c0ea9 100644[m
+[1m--- a/README.md[m
+[1m+++ b/README.md[m
+[36m@@ -20,9 +20,9 @@[m [mnot implied by this product direction.[m
+ [m
+ ## Current state[m
+ [m
+[31m-**Milestones 1 through 4 are completed and officially closed.** Milestone 4[m
+[31m-retains its frozen design and implementation after passing automated validation[m
+[31m-and manual IBM Bob validation with 42/42 tests.[m
+[32m+[m[32m**Milestones 1 through 4 are completed and officially closed.** Their approved[m
+[32m+[m[32mdesigns and implementations are `COMPLETED — FROZEN`. Milestone 4 passed[m
+[32m+[m[32mautomated validation and manual IBM Bob validation with 42/42 tests.[m
+ [m
+ The server now provides secure creation of an initial DRAFT Work Item dossier[m
+ and its controlled local document lifecycle, append-only decisions and[m
+[36m@@ -32,13 +32,24 @@[m [mworkspace initialization, and explicit derived AI-context refresh remain[m
+ available. Closing, archiving, reopening, and state transitions remain[m
+ unavailable.[m
+ [m
+[31m-Milestone 4 uses the current local file-based workspace. Milestone 5 remains[m
+[31m-future and unimplemented. The product direction distinguishes a future WS[m
+[31m-Workspace Core, Technology Profiles and Project Profiles, without implementing[m
+[32m+[m[32mMilestone 4 uses the current local file-based workspace. Milestone 4.1A is the[m
+[32m+[m[32mapproved and frozen documentation/localisation design; M4.1B has completed[m
+[32m+[m[32mautomatic and manual IBM Bob validation. Milestone 4.1 is closed and frozen;[m
+[32m+[m[32mMilestone 5 is ready to start. The product direction distinguishes a[m
+[32m+[m[32mfuture WS Workspace Core, Technology Profiles and Project Profiles, without implementing[m
+ or defining any of them today.[m
+ Sharing, synchronization, corporate folders, internal servers, and a Central[m
+ Knowledge Service remain future options that have not been selected.[m
+ [m
+[32m+[m[32m## Milestone 4.1A design[m
+[32m+[m
+[32m+[m[32mThe frozen [M4.1A design](docs/MILESTONE_4_1_DESIGN.md) now governs the[m
+[32m+[m[32mimplemented workspace-local document-language configuration and immutable[m
+[32m+[m[32mmanifest rendering snapshot for new Work Items. M4.1B is `IMPLEMENTED`, with[m
+[32m+[m[32mautomatic validation and manual IBM Bob validation `PASS`. Milestone 4.1 is[m
+[32m+[m[32m`COMPLETED — FROZEN`; no `WS_DOCUMENT_LANGUAGE` variable or MCP contract change[m
+[32m+[m[32mexists, and historical Work Items retain their English baseline.[m
+[32m+[m
+ ## Requirements[m
+ [m
+ - Node.js 18 or later. Milestone 1 validation used Node.js v24.18.0.[m
+[36m@@ -221,6 +232,11 @@[m [mMilestone 4 is officially closed. See[m
+ [Pruebas_Milestone_4.md](docs/Pruebas_Milestone_4.md) for the automated and[m
+ manual evidence and the architectural resolution of the observations.[m
+ [m
+[32m+[m[32mM4.1B implementation evidence is recorded in[m
+[32m+[m[32m[Pruebas_Milestone_4_1.md](docs/Pruebas_Milestone_4_1.md). Its automatic and[m
+[32m+[m[32mmanual IBM Bob validation passed with no implementation or contract defects.[m
+[32m+[m[32mMilestone 4.1 is officially `COMPLETED — FROZEN`.[m
+[32m+[m
+ ## Milestone 2 Validation[m
+ [m
+ - `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`, and[m
+[1mdiff --git a/docs/ARCHITECTURE.md b/docs/ARCHITECTURE.md[m
+[1mindex 74d8779..16300f9 100644[m
+[1m--- a/docs/ARCHITECTURE.md[m
+[1m+++ b/docs/ARCHITECTURE.md[m
+[36m@@ -237,6 +237,31 @@[m [mserver environment variable through its verified registration. There is no[m
+ additional Bob-specific server configuration and no implicit fallback. Invalid,[m
+ missing, inaccessible or non-directory roots stop server startup safely.[m
+ [m
+[32m+[m[32m## Milestone 4.1 document-language implementation (completed and frozen)[m
+[32m+[m
+[32m+[m[32mM4.1A approves the implemented local configuration at[m
+[32m+[m[32m`.ws-workspace/config/workspace-config.json`, with the canonical initial JSON[m
+[32m+[m[32m`{"schemaVersion":"1.0.0","documentLanguage":"es-ES"}`. M4.1B implements[m
+[32m+[m[32mthis persistence contract while the server continues to accept only[m
+[32m+[m[32m`WS_WORKSPACE_ROOT`; no `WS_DOCUMENT_LANGUAGE` variable or MCP parameter exists.[m
+[32m+[m
+[32m+[m[32mM4.1B writes an immutable rendering snapshot as technical metadata in each[m
+[32m+[m[32mnew `00_MANIFEST.md` and resolves an internal `ES_ES_V1` or historical[m
+[32m+[m[32m`EN_BASELINE_V1` provider from it. System-owned prose is supplied through a[m
+[32m+[m[32mtyped provider registry. Human payloads and strict technical tokens remain[m
+[32m+[m[32mliteral. Each new Spanish[m
+[32m+[m[32m`00_MANIFEST.md` carries the tec

@@ -709,7 +709,7 @@ describe('Milestone 4 MCP stdio adapter', () => {
       expect(refreshedAi.document.metadata.revision).toBe(
         aiContextBefore.document.metadata.revision + 1,
       );
-      expect(refreshedAi.document.content).toContain('## Milestone 4 Audit Summary');
+      expect(refreshedAi.document.content).toContain('## Resumen de auditoría de Milestone 4');
       expect(refreshedAi.document.content).toContain('Use real MCP integration coverage');
       expect(refreshedAi.document.content).toContain('MCP execution output');
       observedResults.push(refreshedAiResult);

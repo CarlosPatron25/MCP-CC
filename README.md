@@ -20,9 +20,9 @@ not implied by this product direction.
 
 ## Current state
 
-**Milestones 1 through 4 are completed and officially closed.** Milestone 4
-retains its frozen design and implementation after passing automated validation
-and manual IBM Bob validation with 42/42 tests.
+**Milestones 1 through 4 are completed and officially closed.** Their approved
+designs and implementations are `COMPLETED — FROZEN`. Milestone 4 passed
+automated validation and manual IBM Bob validation with 42/42 tests.
 
 The server now provides secure creation of an initial DRAFT Work Item dossier
 and its controlled local document lifecycle, append-only decisions and
@@ -32,12 +32,23 @@ workspace initialization, and explicit derived AI-context refresh remain
 available. Closing, archiving, reopening, and state transitions remain
 unavailable.
 
-Milestone 4 uses the current local file-based workspace. Milestone 5 remains
-future and unimplemented. The product direction distinguishes a future WS
-Workspace Core, Technology Profiles and Project Profiles, without implementing
+Milestone 4 uses the current local file-based workspace. Milestone 4.1A is the
+approved and frozen documentation/localisation design; M4.1B has completed
+automatic and manual IBM Bob validation. Milestone 4.1 is closed and frozen;
+Milestone 5 is ready to start. The product direction distinguishes a
+future WS Workspace Core, Technology Profiles and Project Profiles, without implementing
 or defining any of them today.
 Sharing, synchronization, corporate folders, internal servers, and a Central
 Knowledge Service remain future options that have not been selected.
+
+## Milestone 4.1A design
+
+The frozen [M4.1A design](docs/MILESTONE_4_1_DESIGN.md) now governs the
+implemented workspace-local document-language configuration and immutable
+manifest rendering snapshot for new Work Items. M4.1B is `IMPLEMENTED`, with
+automatic validation and manual IBM Bob validation `PASS`. Milestone 4.1 is
+`COMPLETED — FROZEN`; no `WS_DOCUMENT_LANGUAGE` variable or MCP contract change
+exists, and historical Work Items retain their English baseline.
 
 ## Requirements
 
@@ -220,6 +231,11 @@ The authoritative status is:
 Milestone 4 is officially closed. See
 [Pruebas_Milestone_4.md](docs/Pruebas_Milestone_4.md) for the automated and
 manual evidence and the architectural resolution of the observations.
+
+M4.1B implementation evidence is recorded in
+[Pruebas_Milestone_4_1.md](docs/Pruebas_Milestone_4_1.md). Its automatic and
+manual IBM Bob validation passed with no implementation or contract defects.
+Milestone 4.1 is officially `COMPLETED — FROZEN`.
 
 ## Milestone 2 Validation
 

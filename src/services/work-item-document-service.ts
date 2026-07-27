@@ -20,6 +20,7 @@ import {
 } from '../errors/workspace-error.js';
 import type { AIContextProjectionService } from './ai-context-projection-service.js';
 import type { DocumentTemplateService } from './document-template-service.js';
+import { providerForManifest } from './document-rendering.js';
 import type { ManifestLifecycleService } from './manifest-lifecycle-service.js';
 import type { WorkItemDossierRepository } from './work-item-dossier-repository.js';
 
@@ -253,6 +254,8 @@ export class WorkItemDocumentService {
   public async initialize(input: unknown): Promise<InitializeWorkItemDocumentsResult> {
     const request = parseWithSchema(initializeInputSchema, input);
     const workItem = await this.repository.readWorkItem(request.workItemId);
+    const manifestContent = await this.repository.readManifestContent(request.workItemId);
+    const provider = providerForManifest(manifestContent);
 
     try {
       const existing = await this.repository.readLifecycleMetadata(request.workItemId);
@@ -275,8 +278,7 @@ export class WorkItemDocumentService {
     }
 
     const metadata = this.manifestLifecycle.createInitialMetadata();
-    const templates = this.templates.renderInitialDocuments(workItem);
-    const manifestContent = await this.repository.readManifestContent(request.workItemId);
+    const templates = this.templates.renderInitialDocuments(workItem, provider);
     const persisted = await this.repository.initializeDocuments({
       workItemId: request.workItemId,
       documents: INITIALIZABLE_DOCUMENT_TYPES.map((documentType) => {
@@ -325,10 +327,11 @@ export class WorkItemDocumentService {
     }
 
     const currentManifest = await this.repository.readDocument(request.workItemId, 'MANIFEST');
+    const provider = providerForManifest(currentManifest.content);
     const lifecycleMetadata = await this.repository.readLifecycleMetadata(request.workItemId);
     const nextDocument = {
       metadata: this.manifestLifecycle.nextDocumentMetadata(currentDocument.metadata, 'SUPPLIED'),
-      content: this.templates.renderEditableDocument(workItem, payload),
+      content: this.templates.renderEditableDocument(workItem, payload, provider),
     };
     const nextManifestMetadata = this.manifestLifecycle.nextManifestMetadata(
       currentManifest.metadata,
@@ -370,6 +373,7 @@ export class WorkItemDocumentService {
       );
     }
     const currentManifest = await this.repository.readDocument(request.workItemId, 'MANIFEST');
+    const provider = providerForManifest(currentManifest.content);
     const lifecycleMetadata = await this.repository.readLifecycleMetadata(request.workItemId);
     const nextAiContext = {
       metadata: this.manifestLifecycle.nextDocumentMetadata(currentAiContext.metadata, 'DERIVED'),
@@ -403,6 +407,7 @@ export class WorkItemDocumentService {
       functionalAnalysis.content,
       nextLifecycleMetadata,
       auditSummary,
+      provider,
     );
     const nextManifest = {
       metadata: nextManifestMetadata,

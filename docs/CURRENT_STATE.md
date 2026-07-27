@@ -1,6 +1,6 @@
 # Current state
 
-## Milestone 1: COMPLETED
+## Milestone 1: COMPLETED — FROZEN
 
 Milestone 1 is officially closed. Its delivered scope is the secure local MCP
 foundation: health inspection, capability discovery, and idempotent runtime
@@ -51,7 +51,7 @@ and build location; `C:\\WS-Workspace` is the runtime workspace. This
 separation ensures that MCP filesystem writes target the explicitly authorized
 runtime data location rather than the project repository.
 
-## Milestone 2: COMPLETED
+## Milestone 2: COMPLETED — FROZEN
 
 Milestone 2 implements safe, manual creation of a DRAFT Work Item and its
 minimum initial dossier through `create_work_item`. The server validates the
@@ -80,7 +80,7 @@ documents are explicitly deferred to Milestone 3.
   duplicate, preserved the existing dossier, and exposed no absolute path in
   success or error responses.
 
-## Milestone 3: COMPLETED
+## Milestone 3: COMPLETED — FROZEN
 
 Milestone 3 design remains approved and frozen in `MILESTONE_3_DESIGN.md`. The
 approved local implementation is complete and officially closed.
@@ -108,7 +108,7 @@ idempotency, revision control and conflicts, strict payload validation,
 `AI_CONTEXT` as a protected `DERIVED` document, and the absence of absolute
 paths. All acceptance criteria are satisfied.
 
-## Milestone 4: COMPLETED
+## Milestone 4: COMPLETED — FROZEN
 
 **Milestone 4 Architecture Challenge: PASSED.** **Milestone 4 Design Review:
 PASSED.** Its formal technical design is approved and frozen in
@@ -155,11 +155,39 @@ The authoritative status is:
 The design, implementation, automated evidence, and manual IBM Bob evidence are
 frozen. Milestone 4 is officially closed.
 
+## Milestone 4.1A: DESIGN APPROVED — FROZEN
+
+The canonical [M4.1A design](MILESTONE_4_1_DESIGN.md) freezes the
+workspace-local document-language configuration, immutable per-Work-Item
+manifest rendering snapshot, provider boundary, technical Markdown marker,
+historical English compatibility, and error/validation rules. M4.1B implements
+that frozen contract without changing MCP schemas, Work Item semantics, M3/M4
+locks, recovery, ledger, or `AI_CONTEXT` semantics.
+
+`Milestone 4.1B: IMPLEMENTED`. Automatic validation, smoke evidence, and manual
+IBM Bob validation have passed. The executive manual-validation summary records
+no implementation or contract defects; retry idempotency, human-payload
+preservation, the rendering marker, historical compatibility, and M1–M4
+regression were validated. The observations were non-blocking.
+
+`Milestone 4.1: COMPLETED — FROZEN`. Milestone 5 is `READY TO START`.
+
+## Authoritative milestone state
+
+- `Milestone 1: COMPLETED — FROZEN`
+- `Milestone 2: COMPLETED — FROZEN`
+- `Milestone 3: COMPLETED — FROZEN`
+- `Milestone 4: COMPLETED — FROZEN`
+- `Milestone 4.1A: DESIGN APPROVED — FROZEN`
+- `Milestone 4.1B: IMPLEMENTED — AUTOMATIC VALIDATION PASS — MANUAL IBM BOB VALIDATION PASS`
+- `Milestone 4.1: COMPLETED — FROZEN`
+- `Milestone 5: READY TO START`
+
 ## Post-Milestone 3 product evolution review
 
 The current architecture remains local and file-based. Milestone 4 persists
-Work Item data in the local authorized workspace. Milestone 5 remains future,
-unimplemented, and not started by this work.
+Work Item data in the local authorized workspace. The M4.1A design and M4.1B
+implementation are frozen as Milestone 4.1; Milestone 5 is ready to start.
 
 The product direction now distinguishes a future WS Workspace Core, future
 Technology Profiles, and future Project Profiles. M1–M4 are the completed and

@@ -165,6 +165,30 @@ passes the raw input to application validation after Work Item, M3, and M4
 initialization checks. This bridge depends on the current SDK behavior and must
 retain its stdio regression tests whenever the SDK is upgraded.
 
+## Milestone 4.1 document-language conventions (design frozen; implementation pending manual validation)
+
+M4.1A is a frozen design and M4.1B is implemented. Do not add
+`WS_DOCUMENT_LANGUAGE`, an MCP language parameter, a sidecar, a global
+string-language lint rule, or automatic translation. System-visible prose is
+obtained from an exhaustive typed
+artifact registry and a `DocumentContentProvider` selected through immutable
+technical metadata in `00_MANIFEST.md`. User-supplied text and strict technical
+tokens remain
+literal.
+
+The workspace configuration is a strict, maximum-4-KiB JSON file at
+`.ws-workspace/config/workspace-config.json`. It is create-once, never
+overwritten, and uses safe non-replacement publication after existing filesystem
+checks. Each new Spanish `00_MANIFEST.md` includes the exact
+marker and position documented in `MILESTONE_4_1_DESIGN.md`; historical
+manifests without a marker remain valid and must never be rewritten.
+
+M4.1B tests cover configuration and marker corruption, concurrent creation,
+snapshot immutability, Spanish provider coverage, human-text preservation,
+byte-compatible historical rendering, M3/M4 integration, and unchanged
+fifteen-tool MCP schemas. See `Pruebas_Milestone_4_1.md` for reproducible
+automatic results; manual IBM Bob validation remains pending.
+
 ## Adding a document or template
 
 Define its purpose and lifecycle in docs/FUNCTIONAL_REQUIREMENTS.md and

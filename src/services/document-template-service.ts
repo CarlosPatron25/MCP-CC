@@ -8,8 +8,10 @@ import type {
   InitializableDocumentType,
   TechnicalAnalysisDocumentPayload,
 } from '../domain/work-item-document.js';
-
-const NOT_PROVIDED = '_Not provided._';
+import {
+  BaselineEnglishDocumentContentProviderV1,
+  type DocumentContentProvider,
+} from './document-rendering.js';
 
 function normalizeText(value: string): string {
   return value.replace(/\r\n?/g, '\n').trim();
@@ -25,41 +27,44 @@ function normalizeList(values: readonly string[] | undefined): string[] {
   );
 }
 
-function markdownList(values: readonly string[] | undefined): string {
+function markdownList(
+  values: readonly string[] | undefined,
+  provider: DocumentContentProvider,
+): string {
   const normalized = normalizeList(values);
   return normalized.length === 0
-    ? NOT_PROVIDED
+    ? `_${provider.text('notProvided')}._`
     : normalized.map((value) => `- ${value}`).join('\n');
 }
 
-function markdownText(value: string | undefined): string {
+function markdownText(value: string | undefined, provider: DocumentContentProvider): string {
   if (value === undefined) {
-    return NOT_PROVIDED;
+    return `_${provider.text('notProvided')}._`;
   }
 
   const normalized = normalizeText(value);
-  return normalized.length === 0 ? NOT_PROVIDED : normalized;
+  return normalized.length === 0 ? `_${provider.text('notProvided')}._` : normalized;
 }
 
-function workItemReference(workItem: WorkItem): string[] {
+function workItemReference(workItem: WorkItem, provider: DocumentContentProvider): string[] {
   return [
-    '## Work Item',
+    `## ${provider.text('workItem')}`,
     '',
     `- ID: ${workItem.id}`,
-    `- Rally ID: ${workItem.rallyId}`,
-    `- Title: ${workItem.title}`,
-    `- Type: ${workItem.type}`,
-    `- Status: ${workItem.status}`,
+    `- ${provider.text('rallyId')}: ${workItem.rallyId}`,
+    `- ${provider.text('title')}: ${workItem.title}`,
+    `- ${provider.text('type')}: ${workItem.type}`,
+    `- ${provider.text('status')}: ${workItem.status}`,
     '',
   ];
 }
 
-function workItemDates(workItem: WorkItem): string[] {
+function workItemDates(workItem: WorkItem, provider: DocumentContentProvider): string[] {
   return [
-    '## Dates',
+    `## ${provider.text('dates')}`,
     '',
-    `- Started at: ${workItem.dates.startedAt}`,
-    `- Planned completion at: ${markdownText(workItem.dates.plannedCompletionAt)}`,
+    `- ${provider.text('startedAt')}: ${workItem.dates.startedAt}`,
+    `- ${provider.text('plannedCompletionAt')}: ${markdownText(workItem.dates.plannedCompletionAt, provider)}`,
     '',
   ];
 }
@@ -69,155 +74,188 @@ function workItemDates(workItem: WorkItem): string[] {
  * intentionally filesystem-free and does not infer requirements or outcomes.
  */
 export class DocumentTemplateService {
-  public renderInitialDocuments(workItem: WorkItem): Record<InitializableDocumentType, string> {
+  public renderInitialDocuments(
+    workItem: WorkItem,
+    provider: DocumentContentProvider = new BaselineEnglishDocumentContentProviderV1(),
+  ): Record<InitializableDocumentType, string> {
     return {
-      CURRENT_STATE: this.renderCurrentState(workItem, {
-        documentType: 'CURRENT_STATE',
-        knownFacts: [],
-      }),
-      TECHNICAL_ANALYSIS: this.renderTechnicalAnalysis(workItem, {
-        documentType: 'TECHNICAL_ANALYSIS',
-        knownFacts: [],
-      }),
-      IMPACT_ANALYSIS: this.renderImpactAnalysis(workItem, {
-        documentType: 'IMPACT_ANALYSIS',
-        affectedComponents: [],
-      }),
-      IMPLEMENTATION_PLAN: this.renderImplementationPlan(workItem, {
-        documentType: 'IMPLEMENTATION_PLAN',
-        plannedSteps: [],
-      }),
+      CURRENT_STATE: this.renderCurrentState(
+        workItem,
+        {
+          documentType: 'CURRENT_STATE',
+          knownFacts: [],
+        },
+        provider,
+      ),
+      TECHNICAL_ANALYSIS: this.renderTechnicalAnalysis(
+        workItem,
+        {
+          documentType: 'TECHNICAL_ANALYSIS',
+          knownFacts: [],
+        },
+        provider,
+      ),
+      IMPACT_ANALYSIS: this.renderImpactAnalysis(
+        workItem,
+        {
+          documentType: 'IMPACT_ANALYSIS',
+          affectedComponents: [],
+        },
+        provider,
+      ),
+      IMPLEMENTATION_PLAN: this.renderImplementationPlan(
+        workItem,
+        {
+          documentType: 'IMPLEMENTATION_PLAN',
+          plannedSteps: [],
+        },
+        provider,
+      ),
     };
   }
 
-  public renderEditableDocument(workItem: WorkItem, payload: EditableDocumentPayload): string {
+  public renderEditableDocument(
+    workItem: WorkItem,
+    payload: EditableDocumentPayload,
+    provider: DocumentContentProvider = new BaselineEnglishDocumentContentProviderV1(),
+  ): string {
     switch (payload.documentType) {
       case 'FUNCTIONAL_ANALYSIS':
-        return this.renderFunctionalAnalysis(workItem, payload);
+        return this.renderFunctionalAnalysis(workItem, payload, provider);
       case 'CURRENT_STATE':
-        return this.renderCurrentState(workItem, payload);
+        return this.renderCurrentState(workItem, payload, provider);
       case 'TECHNICAL_ANALYSIS':
-        return this.renderTechnicalAnalysis(workItem, payload);
+        return this.renderTechnicalAnalysis(workItem, payload, provider);
       case 'IMPACT_ANALYSIS':
-        return this.renderImpactAnalysis(workItem, payload);
+        return this.renderImpactAnalysis(workItem, payload, provider);
       case 'IMPLEMENTATION_PLAN':
-        return this.renderImplementationPlan(workItem, payload);
+        return this.renderImplementationPlan(workItem, payload, provider);
     }
   }
 
   private renderFunctionalAnalysis(
     workItem: WorkItem,
     payload: FunctionalAnalysisDocumentPayload,
+    provider: DocumentContentProvider,
   ): string {
     return [
-      '# Functional Analysis',
+      `# ${provider.text('functionalAnalysis')}`,
       '',
       `## ${workItem.title}`,
       '',
-      ...workItemReference(workItem),
-      '## Functional definition',
+      ...workItemReference(workItem, provider),
+      `## ${provider.text('functionalDefinition')}`,
       '',
-      markdownText(payload.functionalDefinition),
+      markdownText(payload.functionalDefinition, provider),
       '',
-      '## Acceptance criteria',
+      `## ${provider.text('acceptanceCriteria')}`,
       '',
-      markdownList(payload.acceptanceCriteria),
+      markdownList(payload.acceptanceCriteria, provider),
       '',
-      '## Additional business information',
+      `## ${provider.text('additionalBusinessInformation')}`,
       '',
-      markdownText(payload.additionalBusinessInformation),
+      markdownText(payload.additionalBusinessInformation, provider),
       '',
-      '## Initially related components',
+      `## ${provider.text('initiallyRelatedComponents')}`,
       '',
-      markdownList(payload.relatedComponents),
+      markdownList(payload.relatedComponents, provider),
       '',
-      '## Salesforce context',
+      `## ${provider.text('salesforceContext')}`,
       '',
-      `- Development alias: ${markdownText(payload.developmentAlias)}`,
+      `- ${provider.text('developmentAlias')}: ${markdownText(payload.developmentAlias, provider)}`,
       '',
-      '## Responsibility',
+      `## ${provider.text('responsibility')}`,
       '',
-      markdownText(payload.responsiblePerson),
+      markdownText(payload.responsiblePerson, provider),
       '',
-      '## Dates',
+      `## ${provider.text('dates')}`,
       '',
-      `- Started at: ${markdownText(payload.startedAt)}`,
-      `- Planned completion at: ${markdownText(payload.plannedCompletionAt)}`,
+      `- ${provider.text('startedAt')}: ${markdownText(payload.startedAt, provider)}`,
+      `- ${provider.text('plannedCompletionAt')}: ${markdownText(payload.plannedCompletionAt, provider)}`,
       '',
     ].join('\n');
   }
 
-  private renderCurrentState(workItem: WorkItem, payload: CurrentStateDocumentPayload): string {
+  private renderCurrentState(
+    workItem: WorkItem,
+    payload: CurrentStateDocumentPayload,
+    provider: DocumentContentProvider,
+  ): string {
     return [
-      '# Current State',
+      `# ${provider.text('currentState')}`,
       '',
-      ...workItemReference(workItem),
-      '## Persisted Work Item facts',
+      ...workItemReference(workItem, provider),
+      `## ${provider.text('persistedWorkItemFacts')}`,
       '',
-      `- Functional definition: ${workItem.functional.definition}`,
-      '- Initially related components:',
-      markdownList(workItem.initialScope.relatedComponents),
-      `- Development alias: ${workItem.salesforce.developmentAlias}`,
+      `- ${provider.text('functionalDefinition')}: ${workItem.functional.definition}`,
+      `- ${provider.text('initiallyRelatedComponents')}:`,
+      markdownList(workItem.initialScope.relatedComponents, provider),
+      `- ${provider.text('developmentAlias')}: ${workItem.salesforce.developmentAlias}`,
       '',
-      '## Known implementation context',
+      `## ${provider.text('knownImplementationContext')}`,
       '',
-      markdownList(payload.knownFacts),
+      markdownList(payload.knownFacts, provider),
       '',
-      '## Constraints',
+      `## ${provider.text('constraints')}`,
       '',
-      markdownList(payload.constraints),
+      markdownList(payload.constraints, provider),
       '',
-      '## Open questions',
+      `## ${provider.text('openQuestions')}`,
       '',
-      markdownList(payload.openQuestions),
+      markdownList(payload.openQuestions, provider),
       '',
-      ...workItemDates(workItem),
+      ...workItemDates(workItem, provider),
     ].join('\n');
   }
 
   private renderTechnicalAnalysis(
     workItem: WorkItem,
     payload: TechnicalAnalysisDocumentPayload,
+    provider: DocumentContentProvider,
   ): string {
     return [
-      '# Technical Analysis',
+      `# ${provider.text('technicalAnalysis')}`,
       '',
-      ...workItemReference(workItem),
-      '## Supplied technical observations',
+      ...workItemReference(workItem, provider),
+      `## ${provider.text('suppliedTechnicalObservations')}`,
       '',
-      markdownList(payload.knownFacts),
+      markdownList(payload.knownFacts, provider),
       '',
-      '## Declared hypotheses',
+      `## ${provider.text('declaredHypotheses')}`,
       '',
-      markdownList(payload.declaredHypotheses),
+      markdownList(payload.declaredHypotheses, provider),
       '',
-      '## Supplied dependencies',
+      `## ${provider.text('suppliedDependencies')}`,
       '',
-      markdownList(payload.dependencies),
+      markdownList(payload.dependencies, provider),
       '',
-      '## Open questions',
+      `## ${provider.text('openQuestions')}`,
       '',
-      markdownList(payload.openQuestions),
+      markdownList(payload.openQuestions, provider),
       '',
     ].join('\n');
   }
 
-  private renderImpactAnalysis(workItem: WorkItem, payload: ImpactAnalysisDocumentPayload): string {
+  private renderImpactAnalysis(
+    workItem: WorkItem,
+    payload: ImpactAnalysisDocumentPayload,
+    provider: DocumentContentProvider,
+  ): string {
     return [
-      '# Impact Analysis',
+      `# ${provider.text('impactAnalysis')}`,
       '',
-      ...workItemReference(workItem),
-      '## Affected components',
+      ...workItemReference(workItem, provider),
+      `## ${provider.text('affectedComponents')}`,
       '',
-      markdownList(payload.affectedComponents),
+      markdownList(payload.affectedComponents, provider),
       '',
-      '## Supplied impact statements',
+      `## ${provider.text('suppliedImpactStatements')}`,
       '',
-      markdownList(payload.knownImpacts),
+      markdownList(payload.knownImpacts, provider),
       '',
-      '## Open questions',
+      `## ${provider.text('openQuestions')}`,
       '',
-      markdownList(payload.openQuestions),
+      markdownList(payload.openQuestions, provider),
       '',
     ].join('\n');
   }
@@ -225,22 +263,23 @@ export class DocumentTemplateService {
   private renderImplementationPlan(
     workItem: WorkItem,
     payload: ImplementationPlanDocumentPayload,
+    provider: DocumentContentProvider,
   ): string {
     return [
-      '# Implementation Plan',
+      `# ${provider.text('implementationPlan')}`,
       '',
-      ...workItemReference(workItem),
-      '## Supplied implementation steps',
+      ...workItemReference(workItem, provider),
+      `## ${provider.text('suppliedImplementationSteps')}`,
       '',
-      markdownList(payload.plannedSteps),
+      markdownList(payload.plannedSteps, provider),
       '',
-      '## Prerequisites',
+      `## ${provider.text('prerequisites')}`,
       '',
-      markdownList(payload.prerequisites),
+      markdownList(payload.prerequisites, provider),
       '',
-      '## Open questions',
+      `## ${provider.text('openQuestions')}`,
       '',
-      markdownList(payload.openQuestions),
+      markdownList(payload.openQuestions, provider),
       '',
     ].join('\n');
   }
