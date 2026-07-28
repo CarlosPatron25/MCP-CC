@@ -75,11 +75,17 @@ export interface WorkItemManifest {
 }
 
 export interface WorkItem {
+  schemaVersion?: '1.0.0' | '2.0.0';
   id: string;
   rallyId: string;
   type: WorkItemType;
   status: WorkItemStatus;
   title: string;
+  iteration?: {
+    iterationId: string;
+    displayName?: string;
+    storageToken: string;
+  };
   dates: WorkItemDates;
   responsibility?: WorkItemResponsibility;
   salesforce: SalesforceContext;

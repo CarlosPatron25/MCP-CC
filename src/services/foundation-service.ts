@@ -35,22 +35,7 @@ export interface ServerCapabilitiesResult {
   schemaVersion: string;
   capabilities: string[];
   availableTools: Array<{
-    name:
-      | 'health_check'
-      | 'get_server_capabilities'
-      | 'initialize_workspace'
-      | 'create_work_item'
-      | 'initialize_work_item_documents'
-      | 'get_work_item_document'
-      | 'update_work_item_document'
-      | 'refresh_ai_context'
-      | 'initialize_work_item_tracking'
-      | 'record_decision'
-      | 'record_checkpoint'
-      | 'define_test_plan'
-      | 'record_test_execution'
-      | 'register_evidence_reference'
-      | 'get_work_item_tracking';
+    name: string;
     mutatesFilesystem: boolean;
   }>;
   notImplemented: string[];
@@ -97,6 +82,12 @@ export class FoundationService {
         'versioned-test-planning',
         'controlled-evidence-references',
         'crash-recoverable-multi-file-commits',
+        'living-project-knowledge-base',
+        'declared-participant-workflow',
+        'single-active-developer-session',
+        'deterministic-read-only-technical-snapshots',
+        'work-item-relations-and-project-concepts',
+        'review-complete-reopen-lifecycle',
       ],
       availableTools: [
         { name: 'health_check', mutatesFilesystem: false },
@@ -114,13 +105,31 @@ export class FoundationService {
         { name: 'record_test_execution', mutatesFilesystem: true },
         { name: 'register_evidence_reference', mutatesFilesystem: true },
         { name: 'get_work_item_tracking', mutatesFilesystem: false },
+        { name: 'create_work_item_v2', mutatesFilesystem: true },
+        { name: 'initialize_work_item_workflow', mutatesFilesystem: true },
+        { name: 'get_work_item_workflow', mutatesFilesystem: false },
+        { name: 'activate_work_session', mutatesFilesystem: true },
+        { name: 'switch_work_session', mutatesFilesystem: true },
+        { name: 'record_session_checkpoint', mutatesFilesystem: true },
+        { name: 'suspend_work_session', mutatesFilesystem: true },
+        { name: 'get_active_work_session', mutatesFilesystem: false },
+        { name: 'resume_work_session_context', mutatesFilesystem: false },
+        { name: 'add_work_item_collaborator', mutatesFilesystem: true },
+        { name: 'remove_work_item_collaborator', mutatesFilesystem: true },
+        { name: 'transfer_work_item_responsibility', mutatesFilesystem: true },
+        { name: 'add_work_item_relation', mutatesFilesystem: true },
+        { name: 'remove_work_item_relation', mutatesFilesystem: true },
+        { name: 'propose_project_concept', mutatesFilesystem: true },
+        { name: 'resolve_project_concept_proposal', mutatesFilesystem: true },
+        { name: 'consolidate_work_item_dossier', mutatesFilesystem: true },
+        { name: 'review_work_item', mutatesFilesystem: true },
+        { name: 'resolve_semantic_observation', mutatesFilesystem: true },
+        { name: 'complete_work_item', mutatesFilesystem: true },
+        { name: 'cancel_work_item', mutatesFilesystem: true },
+        { name: 'reopen_work_item', mutatesFilesystem: true },
+        { name: 'get_related_knowledge', mutatesFilesystem: false },
       ],
-      notImplemented: [
-        'close_work_item',
-        'reopen_work_item',
-        'rally-integration',
-        'copado-integration',
-      ],
+      notImplemented: ['rally-integration', 'copado-integration', 'shared-knowledge-service'],
       supportedWorkItemTypes: WORK_ITEM_TYPES,
     };
   }

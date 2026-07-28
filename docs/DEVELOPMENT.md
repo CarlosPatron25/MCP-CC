@@ -23,15 +23,18 @@ Set WS_WORKSPACE_ROOT to an existing authorized directory before dev or start.
 Build before running start or smoke. Keep this directory separate from the
 source repository; the verified runtime directory is `C:\\WS-Workspace`.
 
-`npm.cmd run smoke` creates and removes a temporary workspace itself. It does
-not require `WS_WORKSPACE_ROOT` and must not be pointed at the real runtime
-workspace. It validates the compiled stdio server through initialization,
-`create_work_item`, Milestone 3 document initialization, a controlled read and
-update, all seven Milestone 4 operations, all four closed tracking views, an
-exact idempotent retry, a controlled conflict, and explicit AI-context refresh.
-It requires exactly 15 tools, verifies revisions and identifiers, rejects
-absolute-path leakage in all observed results, and confirms temporary-root
-cleanup.
+The M5 process accepts `WS_WORKSPACE_ROOT` and the optional
+`WS_PROJECT_SOURCE_ROOT`. Use a separate, explicitly authorized read-only
+project directory for operations that capture technical snapshots; never infer
+it from `cwd` or reuse the writable root. Its absence preserves M1–M4.1
+availability and makes session activation fail safely.
+
+The current `npm.cmd run smoke` creates and removes temporary workspace and
+project roots itself. It must not be pointed at a real runtime workspace. It
+validates the compiled stdio server through representative M1–M5 operations,
+preserves discovery of the fifteen historical tools, verifies revisions and
+identifiers, rejects absolute-path leakage in observed results, and confirms
+temporary-root cleanup.
 
 ## IBM Bob runtime configuration
 
@@ -44,7 +47,8 @@ The verified IBM Bob `mcp.json` entry launches the compiled server directly:
       "command": "node",
       "args": ["C:\\US-Workspace-MCP\\dist\\index.js"],
       "env": {
-        "WS_WORKSPACE_ROOT": "C:\\WS-Workspace"
+        "WS_WORKSPACE_ROOT": "C:\\WS-Workspace",
+        "WS_PROJECT_SOURCE_ROOT": "C:\\ruta\\de\\proyecto\\solo-lectura"
       },
       "alwaysAllow": ["health_check", "get_server_capabilities"]
     }
@@ -54,8 +58,10 @@ The verified IBM Bob `mcp.json` entry launches the compiled server directly:
 
 This configuration belongs to IBM Bob rather than this repository. The
 repository at `C:\\US-Workspace-MCP` contains the source and `dist` output;
-`C:\\WS-Workspace` is the separately authorized runtime data root. Do not use
-the source repository as `WS_WORKSPACE_ROOT`.
+`C:\\WS-Workspace` is the separately authorized runtime data root.
+`WS_PROJECT_SOURCE_ROOT` must identify the separate project tree that Bob may
+observe read-only; replace the illustrative value and never reuse either root
+as the other.
 
 ## Conventions
 
@@ -65,12 +71,12 @@ because stdio stdout is reserved for MCP protocol messages. Prettier controls
 formatting and ESLint enforces code-quality rules.
 
 Keep domain and application-service business logic independent of the MCP
-transport and filesystem implementation. Milestones 4 and 5 retain the current
-local file persistence. The product direction distinguishes a future Core,
-Technology Profiles, and Project Profiles, but none is implemented or defined
-in the current MVP. Do not add remote infrastructure, shared storage,
-synchronization, APIs, databases, profiles, or integrations until a future
-milestone explicitly scopes and approves them.
+transport and filesystem implementation. Milestones 4 and 5 retain local file
+persistence. M5 approves only a narrow local knowledge base, relation model,
+concept catalogue and observation port; it does not implement complete
+Technology or Project Profiles. Do not add remote infrastructure, shared
+storage, synchronization, APIs, databases, complete profiles, or integrations
+outside the approved M5 contract.
 
 The completed M1–M3 contracts retain `SalesforceContext`, `developmentAlias`,
 and `rallyId`. Do not present them as already neutral or change them as part of
@@ -165,7 +171,7 @@ passes the raw input to application validation after Work Item, M3, and M4
 initialization checks. This bridge depends on the current SDK behavior and must
 retain its stdio regression tests whenever the SDK is upgraded.
 
-## Milestone 4.1 document-language conventions (design frozen; implementation pending manual validation)
+## Milestone 4.1 document-language conventions (completed and frozen)
 
 M4.1A is a frozen design and M4.1B is implemented. Do not add
 `WS_DOCUMENT_LANGUAGE`, an MCP language parameter, a sidecar, a global
@@ -187,7 +193,77 @@ M4.1B tests cover configuration and marker corruption, concurrent creation,
 snapshot immutability, Spanish provider coverage, human-text preservation,
 byte-compatible historical rendering, M3/M4 integration, and unchanged
 fifteen-tool MCP schemas. See `Pruebas_Milestone_4_1.md` for reproducible
-automatic results; manual IBM Bob validation remains pending.
+automatic results. Automatic and manual IBM Bob validation have passed.
+Milestone 4.1 is `COMPLETED — FROZEN`.
+
+## Convenciones de desarrollo de Milestone 5 (implementado; validación manual pendiente)
+
+M5 está `IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`; las reglas siguientes
+continúan siendo obligatorias para mantenimiento y correcciones. Este estado no
+declara M5 completado ni congelado.
+
+- Keep `.ws-workspace/records/KNOWLEDGE_BASE.json` as the sole M5 structured
+  source. Never add M5 fields or operation names to the strict M4 ledger.
+- Use closed discriminated unions, strict Zod codecs, UUID v4 identities,
+  injected `Clock`, canonical fingerprints, expected revisions and exact retry
+  before stale-revision checks.
+- Keep `create_work_item` unchanged. Additive creation and workflow
+  initialization must use the dual locator and reject duplicate IDs across
+  historical and nested layouts.
+- Domain and application services never construct paths. The locator,
+  knowledge repository and observation adapter own their distinct physical
+  boundaries.
+- `WS_WORKSPACE_ROOT` is the only write boundary.
+  `WS_PROJECT_SOURCE_ROOT` is read-only, non-overlapping and never returned.
+  Snapshot code must stream hashes, enforce limits and avoid file content.
+- Acquire the M5 knowledge lock before affected Work Item locks; sort Work Item
+  IDs lexicographically. Do not introduce a second per-Work-Item lock.
+- Confirm the knowledge base, projections, manifests and legacy YAML affected
+  by one logical mutation in a single recoverable transaction. Recovery target
+  recognition does not grant general write authority.
+- Do not describe the historical M3/M4 mutation plus M5 auto-reopen bridge as
+  one physical transaction. They are sequential commits. Every completion must
+  capture all seven M3 document revisions and the M4 `auditRevision` under the
+  M5 gate and shared Work Item lock. The bridge must compare its typed M3/M4
+  cursor with that boundary before bridge idempotency: an older/equal cursor is
+  a no-op, while a newer cursor reopens only a still-`COMPLETED` workflow.
+  Retry safety does not depend on timestamps or a shared idempotency key.
+- Do not attach the historical bridge to `initialize_work_item_documents`; a
+  valid initialization after completion creates no new document revision.
+- Treat manifest `Knowledge revision` as a per-dossier watermark of the global
+  revision at that dossier's last affected commit. Do not rewrite unrelated
+  dossiers merely to advance it, and normalize it when validating otherwise
+  authoritative projection content.
+- Require 1–500 UUID v4 `evidenceReferenceIds` for every project-concept
+  proposal.
+- Preserve M3 and M4 enums, providers, marker, inventories and explicit
+  `AI_CONTEXT` refresh. Add M5 manifest content through owned section
+  composition and include new artifact kinds in both rendering providers.
+- Treat `ParticipantRef` as declared identity. Never infer it from the
+  operating system or describe local equality checks as authentication.
+- Do not move a dossier on complete, cancel or reopen.
+- Keep MCP adapters thin and all historical tool schemas unchanged. Expand
+  capabilities and smoke only in the increment that actually implements the
+  new tools.
+
+Every M5 increment must add unit, repository, MCP, idempotency, concurrency,
+failure-injection, recovery, historical-compatibility and no-absolute-path
+coverage proportional to its surface. Run:
+
+```text
+npm.cmd run format
+npm.cmd run typecheck
+npm.cmd run lint
+npm.cmd run test
+npm.cmd run build
+npm.cmd run check
+npm.cmd run smoke
+```
+
+El estado vigente es
+`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. No se marcará M5 como
+completado sin validación manual separada y cierre aprobado. La evidencia se
+registrará en `Pruebas_Milestone_5.md`.
 
 ## Adding a document or template
 

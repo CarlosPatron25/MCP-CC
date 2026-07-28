@@ -1,4 +1,4 @@
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -169,6 +169,27 @@ describe('WorkItemCreationService', () => {
     await expect(readFile(ymlPath, 'utf8')).resolves.toBe(original);
   });
 
+  it('rejects an ID that already exists in the iteration/type layout', async () => {
+    const { root, service } = await createService();
+    const nestedDossier = join(
+      root,
+      '.ws-workspace',
+      'active',
+      'Sprint_2026.07',
+      'USER_STORY',
+      'US-123',
+    );
+    const nestedYml = join(nestedDossier, 'WORK_ITEM.yml');
+    await mkdir(nestedDossier, { recursive: true });
+    await writeFile(nestedYml, 'nested v2 dossier\n', 'utf8');
+
+    await expect(service.create(validInput())).rejects.toBeInstanceOf(WorkItemAlreadyExistsError);
+    await expect(readFile(nestedYml, 'utf8')).resolves.toBe('nested v2 dossier\n');
+    await expect(stat(join(root, '.ws-workspace', 'active', 'US-123'))).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+  });
+
   it('rejects path traversal attempts in a Rally ID', async () => {
     const { root, service } = await createService();
 
@@ -177,6 +198,20 @@ describe('WorkItemCreationService', () => {
       details: { field: 'rallyId' },
     });
     await expect(stat(join(root, 'outside'))).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('rejects a linked active directory without writing through it', async () => {
+    const { root, service } = await createService();
+    const externalRoot = await createTemporaryWorkspaceRoot();
+    temporaryRoots.push(externalRoot);
+    const activeDirectory = join(root, '.ws-workspace', 'active');
+    await rm(activeDirectory, { recursive: true });
+    await symlink(externalRoot, activeDirectory, process.platform === 'win32' ? 'junction' : 'dir');
+
+    await expect(service.create(validInput())).rejects.toMatchObject({
+      code: 'WORKSPACE_NOT_INITIALIZED',
+    });
+    await expect(readdir(externalRoot)).resolves.toEqual([]);
   });
 
   it('does not overwrite files in a pre-existing target directory', async () => {

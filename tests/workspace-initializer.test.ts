@@ -25,6 +25,7 @@ describe('initializeWorkspace', () => {
       join('.ws-workspace', 'active'),
       join('.ws-workspace', 'archive'),
       join('.ws-workspace', 'config'),
+      join('.ws-workspace', 'records'),
       join('.ws-workspace', 'config', 'workspace-config.json'),
       join('.ws-workspace', 'README.md'),
     ]);
@@ -47,7 +48,7 @@ describe('initializeWorkspace', () => {
     const result = await initializeWorkspace(root);
 
     expect(result.created).toEqual([]);
-    expect(result.existing).toHaveLength(6);
+    expect(result.existing).toHaveLength(7);
     await expect(readFile(readmePath, 'utf8')).resolves.toBe('User-controlled content\n');
   });
 });

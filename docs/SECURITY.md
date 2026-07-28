@@ -103,7 +103,7 @@ validates physical identities and retains a live claim during lock release to
 detect tampering and fail closed, but it does not claim protection from a fully
 privileged hostile local process.
 
-## Milestone 4.1 configuration security (design frozen; manual validation pending)
+## Milestone 4.1 configuration security (completed and frozen)
 
 M4.1B reads only the fixed workspace-relative path
 `.ws-workspace/config/workspace-config.json`, after the existing containment,
@@ -118,8 +118,72 @@ integrity metadata. Corruption is reported with safe, additive errors without fi
 paths. Historical Work Items without this metadata retain their English baseline
 and are not migrated. This design adds no environment variable, secret, network
 permission, workspace-wide lock, sidecar, or change to M3/M4 locking, journal,
-recovery or ledger security. M4.1B is `IMPLEMENTED — PENDING MANUAL IBM BOB
-VALIDATION`; no manual result is declared here.
+recovery or ledger security. Automatic and manual IBM Bob validation passed,
+and Milestone 4.1 is `COMPLETED — FROZEN`.
+
+## Contrato de seguridad de Milestone 5 (implementado; validación manual pendiente)
+
+**Estado:** `IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. La validación
+manual de los límites de seguridad en IBM Bob sigue pendiente.
+
+M5 mantiene `WS_WORKSPACE_ROOT` como única raíz escribible y añade
+`WS_PROJECT_SOURCE_ROOT` como autoridad separada de solo lectura. Ambas raíces
+deben ser explícitas, absolutas, existentes, directorios no raíz y no pueden
+coincidir ni contenerse. No habrá fallback a `cwd`, autodetección ni exposición
+de sus paths. La ausencia de la raíz de proyecto no reducirá la disponibilidad
+M1–M4.1, pero impide activar una sesión M5.
+
+El adaptador de snapshot implementado:
+
+- recorre sólo archivos regulares bajo la raíz autorizada;
+- no sigue symlinks, junctions o reparse points;
+- persiste paths relativos, hashes, tamaños y metadata acotada, nunca
+  contenido fuente;
+- excluye `.git` físico, `.ws-workspace`, `node_modules`, `dist` y `coverage`;
+- ejecuta Git opcional sin shell y con argumentos fijos de solo lectura;
+- no lee ni devuelve remotes;
+- aplica límites de entradas, bytes leídos y longitud de path; y
+- cancela sin persistencia parcial cuando un límite o identidad física falla.
+
+`.ws-workspace/records/KNOWLEDGE_BASE.json` tiene schema cerrado, tamaño
+acotado, revisión, fingerprints, índice de idempotencia validado y operaciones
+append-only. Las mutaciones adquieren el knowledge lock antes de locks de Work
+Item ordenados. Journal, hashes, parents físicos, allowlist y propiedad de lock
+se validarán antes de mover o retirar material. Un estado desconocido o
+corrupto se conserva y falla cerrado.
+
+La creación v2 publica el dossier antes de terminar sus inicializaciones
+M3/M4/M5 y, por tanto, declara un bootstrap recuperable, no atomicidad
+cross-repository. El manifest conserva únicamente la huella SHA-256 de toda la
+petición normalizada; no expone la clave ni el `participantId`. Tras una caída,
+esa huella impide que una petición diferente adopte el dossier parcial. Los
+errores controlados intentan retirarlo y un fallo de rollback se eleva sin
+presentar éxito.
+
+La reapertura disparada por M3/M4 no se presenta como transacción física única:
+el commit histórico precede al commit M5. Cada cierre conserva una frontera
+causal con las siete revisiones documentales M3 y la revisión de auditoría M4.
+La segunda fase compara su cursor tipado con esa frontera antes de la
+idempotencia del bridge: cursores anteriores o iguales son no-op; uno posterior
+reabre únicamente un workflow todavía `COMPLETED`. Los timestamps sólo auditan
+y no se confía en una idempotency key común. El watermark `Knowledge revision`
+de un dossier no afectado puede quedar por detrás de la revisión global sin
+considerarse corrupción, porque se valida junto con `workItemRevision` y el
+contenido autoritativo.
+
+Las propuestas de concepto exigen entre 1 y 500 UUID v4 en
+`evidenceReferenceIds`; un array vacío se rechaza antes de persistir.
+
+La identidad M5 es `DECLARED`: un `participantId` se compara con el estado
+persistido, pero no constituye autenticación. No se usa el usuario del sistema
+operativo. Cierre, cancelación, reapertura explícita, transferencia y
+aprobación de concepto requieren actor declarado permitido y confirmación. Una
+IA no puede ejecutar esas acciones por inferencia.
+
+Las respuestas y errores M5 no exponen roots, rutas absolutas, locks,
+staging, journals, contenido fuente, credenciales ni detalles nativos. El
+futuro puerto de identidad o almacenamiento compartido requiere diseño y
+revisión de seguridad separados.
 
 ## Secrets and sensitive data
 
@@ -133,7 +197,9 @@ document contents.
 Run the server with the least-privileged local account practical. Choose a
 dedicated empty directory as WS_WORKSPACE_ROOT, not a filesystem root and not a
 corporate repository. The process needs no network listener or external service
-credential in the implemented M1–M4 scope.
+credential in the implemented M1–M4.1 scope. La observación M5 implementada
+requiere permiso de lectura exclusivamente sobre una raíz de proyecto
+dedicada; no requiere listener de red ni credencial externa.
 
 ## Verified IBM Bob boundary
 

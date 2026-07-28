@@ -12,6 +12,7 @@ import { ManifestUpdateError } from '../errors/workspace-error.js';
 
 export const DOCUMENT_LIFECYCLE_INVENTORY_HEADING = '## Document Lifecycle Inventory';
 export const M4_AUDIT_INVENTORY_HEADING = '## Milestone 4 Audit Inventory';
+export const M5_KNOWLEDGE_INVENTORY_HEADING = '## Milestone 5 Workflow and Knowledge Inventory';
 
 const DOCUMENT_LIFECYCLE_HEADER =
   '| Document type | Relative path | Status | Revision | Updated at | Updated by | Content type |';
@@ -27,6 +28,7 @@ export interface ManifestSection {
 export interface ParsedManifestSections {
   documentLifecycle?: ManifestSection;
   m4AuditInventory?: ManifestSection;
+  m5KnowledgeInventory?: ManifestSection;
 }
 
 function manifestError(): ManifestUpdateError {
@@ -233,16 +235,27 @@ export class ManifestSectionCompositor {
   public parse(manifest: string): ParsedManifestSections {
     const documentLifecycle = extractDocumentLifecycleInventorySection(manifest);
     const m4Matches = exactHeadingMatches(manifest, M4_AUDIT_INVENTORY_HEADING);
-    if (m4Matches.length > 1) {
+    const m5Matches = exactHeadingMatches(manifest, M5_KNOWLEDGE_INVENTORY_HEADING);
+    if (m4Matches.length > 1 || m5Matches.length > 1) {
       throw manifestError();
     }
 
     const lifecycleStart = documentLifecycle?.start;
     const m4Start = m4Matches[0];
+    const m5Start = m5Matches[0];
     if (m4Start !== undefined && lifecycleStart === undefined) {
       throw manifestError();
     }
     if (m4Start !== undefined && lifecycleStart !== undefined && m4Start > lifecycleStart) {
+      throw manifestError();
+    }
+    if (m5Start !== undefined && lifecycleStart === undefined) {
+      throw manifestError();
+    }
+    if (m5Start !== undefined && lifecycleStart !== undefined && m5Start > lifecycleStart) {
+      throw manifestError();
+    }
+    if (m5Start !== undefined && m4Start !== undefined && m5Start > m4Start) {
       throw manifestError();
     }
 
@@ -256,6 +269,11 @@ export class ManifestSectionCompositor {
         ? {}
         : {
             m4AuditInventory: sectionAt(manifest, M4_AUDIT_INVENTORY_HEADING, m4Start),
+          }),
+      ...(m5Start === undefined
+        ? {}
+        : {
+            m5KnowledgeInventory: sectionAt(manifest, M5_KNOWLEDGE_INVENTORY_HEADING, m5Start),
           }),
     };
   }
@@ -291,5 +309,23 @@ export class ManifestSectionCompositor {
       replacement +
       manifest.slice(parsed.documentLifecycle.start)
     );
+  }
+
+  public upsertM5KnowledgeInventory(manifest: string, section: string): string {
+    const parsed = this.parse(manifest);
+    if (parsed.documentLifecycle === undefined) {
+      throw manifestError();
+    }
+
+    const newline = newlineFor(manifest);
+    if (parsed.m5KnowledgeInventory !== undefined) {
+      const suffix = manifest.slice(parsed.m5KnowledgeInventory.end);
+      const replacement = sectionWithFollowingSeparator(section, newline, suffix.length > 0);
+      return manifest.slice(0, parsed.m5KnowledgeInventory.start) + replacement + suffix;
+    }
+
+    const insertionPoint = parsed.m4AuditInventory?.start ?? parsed.documentLifecycle.start;
+    const replacement = sectionWithFollowingSeparator(section, newline, true);
+    return manifest.slice(0, insertionPoint) + replacement + manifest.slice(insertionPoint);
   }
 }

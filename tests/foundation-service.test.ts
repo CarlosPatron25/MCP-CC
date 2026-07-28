@@ -45,8 +45,12 @@ describe('FoundationService', () => {
         { name: 'get_work_item_document', mutatesFilesystem: false },
         { name: 'update_work_item_document', mutatesFilesystem: true },
         { name: 'refresh_ai_context', mutatesFilesystem: true },
+        { name: 'activate_work_session', mutatesFilesystem: true },
+        { name: 'suspend_work_session', mutatesFilesystem: true },
+        { name: 'resolve_semantic_observation', mutatesFilesystem: true },
+        { name: 'get_related_knowledge', mutatesFilesystem: false },
       ]),
-      notImplemented: expect.arrayContaining(['close_work_item']),
+      notImplemented: expect.arrayContaining(['shared-knowledge-service']),
     });
   });
 });

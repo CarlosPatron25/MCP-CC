@@ -21,6 +21,29 @@ const EXPECTED_TOOLS = [
   'record_test_execution',
   'register_evidence_reference',
   'get_work_item_tracking',
+  'create_work_item_v2',
+  'initialize_work_item_workflow',
+  'get_work_item_workflow',
+  'activate_work_session',
+  'switch_work_session',
+  'record_session_checkpoint',
+  'suspend_work_session',
+  'get_active_work_session',
+  'resume_work_session_context',
+  'add_work_item_collaborator',
+  'remove_work_item_collaborator',
+  'transfer_work_item_responsibility',
+  'add_work_item_relation',
+  'remove_work_item_relation',
+  'propose_project_concept',
+  'resolve_project_concept_proposal',
+  'consolidate_work_item_dossier',
+  'review_work_item',
+  'resolve_semantic_observation',
+  'complete_work_item',
+  'cancel_work_item',
+  'reopen_work_item',
+  'get_related_knowledge',
 ] as const;
 
 const M4_TOOLS = [
@@ -32,6 +55,8 @@ const M4_TOOLS = [
   'register_evidence_reference',
   'get_work_item_tracking',
 ] as const;
+
+const M5_TOOLS = EXPECTED_TOOLS.slice(15);
 
 const TRACKING_PATHS = {
   DECISIONS: '06_DECISIONS.md',
@@ -253,7 +278,7 @@ async function createM3WorkItem(
 }
 
 describe('Milestone 4 MCP stdio adapter', () => {
-  it('discovers exactly 15 tools, reports matching capabilities, and rejects unknown fields', async () => {
+  it('preserves 15 historical tools within the additive M5 surface and rejects unknown fields', async () => {
     const root = await createTemporaryWorkspaceRoot();
     temporaryRoots.push(root);
     const client = await connectClient(root);
@@ -274,10 +299,17 @@ describe('Milestone 4 MCP stdio adapter', () => {
 
       const tools = await client.listTools();
       const discoveredNames = tools.tools.map((tool) => tool.name);
-      expect(discoveredNames).toHaveLength(15);
+      expect(discoveredNames).toHaveLength(EXPECTED_TOOLS.length);
       expect([...discoveredNames].sort()).toEqual([...EXPECTED_TOOLS].sort());
 
       for (const name of M4_TOOLS) {
+        const tool = tools.tools.find((candidate) => candidate.name === name);
+        expect(tool?.inputSchema).toMatchObject({
+          type: 'object',
+          additionalProperties: false,
+        });
+      }
+      for (const name of M5_TOOLS) {
         const tool = tools.tools.find((candidate) => candidate.name === name);
         expect(tool?.inputSchema).toMatchObject({
           type: 'object',
@@ -290,7 +322,7 @@ describe('Milestone 4 MCP stdio adapter', () => {
         arguments: {},
       });
       const capabilities = payload<CapabilitiesPayload>(capabilitiesResult);
-      expect(capabilities.availableTools).toHaveLength(15);
+      expect(capabilities.availableTools).toHaveLength(EXPECTED_TOOLS.length);
       expect(capabilities.availableTools.map((tool) => tool.name).sort()).toEqual(
         [...EXPECTED_TOOLS].sort(),
       );

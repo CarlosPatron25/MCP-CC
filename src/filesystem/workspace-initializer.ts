@@ -101,6 +101,7 @@ export async function initializeWorkspace(
   const activeDirectory = resolvePathWithinRoot(workspaceDirectory, 'active');
   const archiveDirectory = resolvePathWithinRoot(workspaceDirectory, 'archive');
   const configDirectory = resolvePathWithinRoot(workspaceDirectory, 'config');
+  const recordsDirectory = resolvePathWithinRoot(workspaceDirectory, 'records');
   const readmePath = resolvePathWithinRoot(workspaceDirectory, 'README.md');
 
   const directoryDefinitions = [
@@ -108,6 +109,7 @@ export async function initializeWorkspace(
     { path: activeDirectory, displayPath: 'active' },
     { path: archiveDirectory, displayPath: 'archive' },
     { path: configDirectory, displayPath: 'config' },
+    { path: recordsDirectory, displayPath: 'records' },
   ];
 
   const directories: InitializationEntry[] = [];

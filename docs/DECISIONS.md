@@ -4,32 +4,36 @@ All decisions below are approved. Status is Accepted unless later superseded.
 
 ## Approved decision index
 
-| #   | Approved decision                                                                | Record  |
-| --- | -------------------------------------------------------------------------------- | ------- |
-| 1   | Only four work-item types exist.                                                 | ADR-001 |
-| 2   | Rally ID is mandatory.                                                           | ADR-002 |
-| 3   | Git branches are not used in the workflow.                                       | ADR-003 |
-| 4   | A development sandbox or alias is mandatory.                                     | ADR-004 |
-| 5   | Start date is mandatory.                                                         | ADR-005 |
-| 6   | Planned completion date is optional.                                             | ADR-005 |
-| 7   | Actual completion date is generated on close.                                    | ADR-005 |
-| 8   | Responsible person is optional.                                                  | ADR-006 |
-| 9   | Initially related components are captured.                                       | ADR-006 |
-| 10  | Additional business information is optional.                                     | ADR-006 |
-| 11  | The first interface is MCP for IBM Bob.                                          | ADR-007 |
-| 12  | The verified IBM Bob registration is accepted.                                   | ADR-007 |
-| 13  | Initial local transport is stdio.                                                | ADR-008 |
-| 14  | The core is decoupled from the MCP adapter.                                      | ADR-009 |
-| 15  | There is no Rally integration in Milestone 1.                                    | ADR-010 |
-| 16  | There is no Copado integration in Milestone 1.                                   | ADR-010 |
-| 17  | There is no VS Code extension in the MVP.                                        | ADR-011 |
-| 18  | Initial persistence is file-based.                                               | ADR-009 |
-| 19  | Development and validation are incremental.                                      | ADR-012 |
-| 20  | The tool never accesses or writes outside its authorized root.                   | ADR-012 |
-| 21  | IBM Bob runs the compiled server against a separate runtime root.                | ADR-014 |
-| 22  | The MVP remains local; future sharing needs separate approval.                   | ADR-015 |
-| 23  | Product layering and deferred future sharing are clarified.                      | ADR-016 |
-| 24  | Document-language configuration and rendering snapshots are local and immutable. | ADR-017 |
+| #   | Approved decision                                                                 | Record  |
+| --- | --------------------------------------------------------------------------------- | ------- |
+| 1   | Only four work-item types exist.                                                  | ADR-001 |
+| 2   | Rally ID is mandatory.                                                            | ADR-002 |
+| 3   | Git branches are not used in the workflow.                                        | ADR-003 |
+| 4   | A development sandbox or alias is mandatory.                                      | ADR-004 |
+| 5   | Start date is mandatory.                                                          | ADR-005 |
+| 6   | Planned completion date is optional.                                              | ADR-005 |
+| 7   | Actual completion date is generated on close.                                     | ADR-005 |
+| 8   | Responsible person is optional.                                                   | ADR-006 |
+| 9   | Initially related components are captured.                                        | ADR-006 |
+| 10  | Additional business information is optional.                                      | ADR-006 |
+| 11  | The first interface is MCP for IBM Bob.                                           | ADR-007 |
+| 12  | The verified IBM Bob registration is accepted.                                    | ADR-007 |
+| 13  | Initial local transport is stdio.                                                 | ADR-008 |
+| 14  | The core is decoupled from the MCP adapter.                                       | ADR-009 |
+| 15  | There is no Rally integration in Milestone 1.                                     | ADR-010 |
+| 16  | There is no Copado integration in Milestone 1.                                    | ADR-010 |
+| 17  | There is no VS Code extension in the MVP.                                         | ADR-011 |
+| 18  | Initial persistence is file-based.                                                | ADR-009 |
+| 19  | Development and validation are incremental.                                       | ADR-012 |
+| 20  | The tool never accesses or writes outside its authorized root.                    | ADR-012 |
+| 21  | IBM Bob runs the compiled server against a separate runtime root.                 | ADR-014 |
+| 22  | The MVP remains local; future sharing needs separate approval.                    | ADR-015 |
+| 23  | Product layering and deferred future sharing are clarified.                       | ADR-016 |
+| 24  | Document-language configuration and rendering snapshots are local and immutable.  | ADR-017 |
+| 25  | M5 uses one workspace-level knowledge base, separate from the frozen M4 ledger.   | ADR-018 |
+| 26  | M5 adds a read-only source root, dual layout and logical lifecycle compatibility. | ADR-019 |
+| 27  | M5 identities are stable but declared, and host UX remains outside the domain.    | ADR-020 |
+| 28  | M5 completion records a causal M3/M4 revision fence for historical auto-reopen.   | ADR-021 |
 
 ## ADR-001: Work-item types
 
@@ -296,9 +300,222 @@ hacer un dossier español indistinguible de un histórico sin marker, sin que se
 autorice sidecar o autoreparación. M4.1A queda aprobado y congelado como diseño.
 M4.1B debe
 implementar proveedores, validadores, parser de marcador, pruebas de seguridad
-y regresión. La validación automática está superada y la validación IBM Bob
-separada queda pendiente antes del cierre administrativo de M4.1. No cambia el
-modelo `WorkItem`, el ledger, las quince herramientas MCP ni Milestone 5, que
-permanece pausado.
+y regresión. En el momento de aprobar este ADR, la validación automática estaba
+superada y la validación IBM Bob separada quedaba pendiente antes del cierre
+administrativo de M4.1. No cambió el modelo `WorkItem`, el ledger ni las quince
+herramientas MCP.
 
 Status: Accepted.
+
+Closure note: M4.1B superó posteriormente la validación manual IBM Bob y
+Milestone 4.1 quedó `COMPLETED — FROZEN`. Milestone 5 está actualmente
+`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`; este cambio posterior no
+modifica la decisión técnica de ADR-017.
+
+## ADR-018: Base de conocimiento única de M5 y separación del ledger M4
+
+Context: La baseline M1–M4.1 está completada y congelada. M4 conserva
+`records/AUDIT_LEDGER.json` con schema `1.0.0` como fuente de verdad de
+decisiones, checkpoints M4, planes, ejecuciones y referencias de evidencia. M5
+debe añadir sesiones, snapshots técnicos, participantes, procedencia,
+relaciones, conceptos, consolidaciones, revisiones y ciclo de vida sin ampliar
+ni reinterpretar ese contrato histórico.
+
+Alternatives:
+
+1. Ampliar el ledger M4 con campos y operaciones M5.
+2. Crear stores independientes para sesiones, snapshots, relaciones y
+   conceptos.
+3. Mantener una única fuente estructurada M5 para todo el workspace, separada
+   del ledger M4. **Seleccionada.**
+
+Decision: La única fuente estructurada de M5 será
+`.ws-workspace/records/KNOWLEDGE_BASE.json`. Tendrá schema, revisión global,
+operaciones append-only e índice global de idempotencia propios. Una mutación
+lógica confirmada añadirá una operación inmutable; un reintento exacto se
+resolverá antes de comprobar revisiones obsoletas.
+
+El ledger M4 permanecerá en schema `1.0.0` y conservará intactas su autoridad,
+operaciones, proyecciones e índice. M5 no duplicará sus eventos dentro del
+ledger M4. Los Markdown M5, el bloque M5 del manifest, el catálogo consultable
+y las vistas de sesión serán proyecciones regenerables de la base M5, nunca
+fuentes alternativas.
+
+La autoridad agregada del dossier queda distribuida de forma explícita:
+
+- identidad histórica, Rally ID y tipo: `WORK_ITEM.yml` versionado;
+- decisiones, checkpoints M4, pruebas y evidencia: ledger M4;
+- estado canónico, iteración, participantes, sesiones, snapshots, procedencia,
+  relaciones, conceptos, revisiones y ciclo M5: base M5;
+- narrativa M5 y `AI_CONTEXT`: proyecciones protegidas.
+
+Consequences: M5 necesita un codec estricto, un coordinador de transacción
+workspace-level y una política compartida de targets para confirmar juntos la
+base, las proyecciones afectadas, el manifest y las proyecciones legacy. Un
+estado inconsistente falla cerrado y nunca se reconstruye silenciosamente
+desde Markdown. Esta decisión autoriza un catálogo mínimo de conceptos y
+consulta de conocimiento dentro del MVP local, pero no implementa un Project
+Profile completo, almacenamiento compartido, sincronización ni servicio
+central.
+
+Implementation status: El contrato está definido en
+`MILESTONE_5_DESIGN.md`; M5 está
+`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION` y no se declara completado ni
+congelado. La atomicidad descrita para la base y sus proyecciones se aplica a
+cada commit M5. El bridge posterior a una mutación M3/M4 usa un segundo commit
+físico y converge al releer el estado; no amplía esta decisión a una
+transacción cross-repository. `Knowledge revision` es un watermark global por
+dossier y no obliga a reescribir dossiers no afectados.
+
+Status: Accepted for Milestone 5.
+
+## ADR-019: Raíz de observación, layout dual y ciclo de vida lógico M5
+
+Context: La baseline usa `WS_WORKSPACE_ROOT` como única raíz de datos y crea
+dossiers en `.ws-workspace/active/<workItemId>`. El repositorio fuente se
+mantiene separado del workspace escribible. M5 necesita snapshots técnicos de
+un proyecto autorizado, un layout `Iteration → tipo → Work Item`, tres estados
+canónicos y compatibilidad no destructiva con dossiers históricos.
+
+Decision: M5 introducirá `WS_PROJECT_SOURCE_ROOT` como binding de despliegue
+explícito y exclusivamente de lectura. `WS_WORKSPACE_ROOT` seguirá siendo la
+única raíz escribible. Las dos raíces deberán ser absolutas, existentes,
+directorios que no sean raíces de volumen, distintas y no contenidas entre sí.
+No habrá fallback, descubrimiento mediante el directorio de proceso ni
+persistencia o exposición de la ruta absoluta. La ausencia de la segunda raíz
+no impedirá M1–M4.1, pero una activación de sesión M5 fallará de forma segura.
+
+Los dossiers históricos conservarán
+`.ws-workspace/active/<workItemId>`. Los creados mediante el contrato M5 usarán:
+
+```text
+.ws-workspace/active/<iterationStorageToken>/<workItemType>/<workItemId>
+```
+
+Un `WorkItemLocator` leerá ambos layouts, exigirá unicidad global del
+`workItemId`, validará los componentes físicos sin seguir enlaces y no moverá
+históricos automáticamente. `active` será un namespace compatible, no la
+representación del estado M5. Las relaciones nunca participarán en la
+resolución física.
+
+Los estados canónicos M5 serán exactamente `IN_PROGRESS`, `COMPLETED` y
+`CANCELLED`. Para preservar lectores históricos, `WORK_ITEM.yml` será una
+proyección compatible: `CLOSED` representará `COMPLETED`, `CANCELLED`
+representará `CANCELLED` y los demás valores históricos se interpretarán como
+`IN_PROGRESS` tras inicializar el workflow M5. Cierre, reapertura y cancelación
+confirmarán la base M5 y la proyección YAML en el mismo commit. La historia de
+transiciones y fechas permanecerá append-only.
+
+Completar, cancelar o reabrir no moverá la carpeta. `.ws-workspace/archive`
+se conservará por compatibilidad, pero M5 no implementará archivado físico.
+
+Consequences: `create_work_item` M2 conservará su schema y comportamiento. M5
+añadirá un contrato de creación v2 e inicialización explícita de históricos.
+No habrá migración al leer. Esta decisión supersede únicamente para M5 la
+previsión no implementada del roadmap anterior que vinculaba cierre y
+archivado físico; no altera evidencia histórica.
+
+El bootstrap de creación v2 ejecuta M2→M3→M4→M5 por fases bajo el gate global;
+no se declara como una transacción física única. Los errores controlados
+retiran un dossier recién creado. Si una caída deja un dossier parcial, una
+huella SHA-256 de la petición normalizada completa en el manifest permite
+reanudarlo sólo con el retry exacto, sin persistir la clave de idempotencia ni
+el `participantId` en claro. Una petición distinta conserva el dossier y falla
+como colisión global.
+
+Implementation status: Decisión aprobada, documentada e implementada. M5 está
+`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`, todavía no completado.
+
+Status: Accepted for Milestone 5.
+
+## ADR-020: Identidad declarada y portabilidad de la experiencia de host
+
+Context: M3 registra `updatedBy: SYSTEM` y M4 conserva un `declaredActor`
+aportado por el cliente. La baseline no autentica personas ni contiene un
+modelo corporativo de identidad. M5 necesita un responsable principal,
+colaboradores, transferencia, sesiones por desarrollador y confirmaciones
+humanas, manteniendo a IBM Bob como cliente de referencia sin acoplar el
+dominio a su interfaz.
+
+Decision: M5 usará referencias de participante con un identificador estable y
+un nombre visible desacoplados:
+
+```text
+ParticipantRef {
+  participantId
+  displayName
+}
+```
+
+El servidor validará forma, pertenencia y coincidencia del `participantId`,
+pero la assurance del MVP será explícitamente `DECLARED`. No se usará el
+nombre de usuario del sistema operativo ni se describirá al actor como
+autenticado. Un futuro puerto de identidad/autorización podrá aportar
+autenticación sobre el mismo identificador sin cambiar las reglas de dominio.
+
+Completar, cancelar, reabrir explícitamente, transferir responsabilidad y
+aprobar un concepto exigirán confirmación explícita y el actor declarado
+permitido por el estado persistido. Las inferencias de IA no podrán realizar
+por sí solas esas acciones ni oficializar configuración o conocimiento.
+
+IBM Bob podrá representar acciones, formularios, selectores y confirmaciones.
+Esas vistas serán experiencia del cliente. Las mismas operaciones existirán
+como contratos MCP estructurados y tendrán un modo degradado determinista para
+otros clientes; ninguna regla residirá exclusivamente en Bob o en memoria de
+conversación.
+
+Consequences: La autorización local impide incoherencias accidentales, pero no
+constituye autenticación fuerte frente a un cliente malicioso. Documentación,
+errores y proyecciones deberán mantener esa limitación visible. Procedencia y
+transferencias serán eventos append-only y nunca sobrescribirán la historia.
+
+Implementation status: Decisión aprobada, documentada e implementada. M5 está
+`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`, todavía no completado.
+
+Status: Accepted for Milestone 5.
+
+## ADR-021: Frontera causal de revisiones para la reapertura histórica
+
+Context: Las mutaciones M3/M4 y su reapertura M5 se confirman en dos commits
+físicos secuenciales. Releer únicamente el estado permite converger cuando el
+Work Item ya está `IN_PROGRESS`, pero no distingue un retry antiguo de una
+mutación realmente posterior a un segundo cierre. Los timestamps tampoco son
+una frontera causal: dos operaciones pueden compartir resolución temporal y el
+reloj inyectado puede permanecer fijo durante una prueba o recuperación.
+
+Decision: Cada evento `WORK_ITEM_COMPLETED` conservará una
+`HistoricalMutationBoundary` con las revisiones positivas de los siete tipos de
+documento M3 y la `auditRevision` M4 no negativa observadas al cerrar. El
+servicio captura esa frontera bajo el knowledge gate M5 y el lock compartido del
+Work Item. Además, vuelve a verificar el readiness M4 y exige que la revisión
+del ledger coincida con el inventario M4 del manifest antes de confirmar.
+
+El bridge de `update_work_item_document` transportará el tipo documental y su
+revisión confirmada. Los bridges de `record_decision`, `record_checkpoint`,
+`define_test_plan`, `record_test_execution` y `register_evidence_reference`
+transportarán el identificador inmutable de la entrada y su `auditRevision`.
+Antes de comprobar la idempotencia propia del bridge, el cursor se compara con
+la última frontera de cierre:
+
+- cursor anterior o igual: no-op;
+- cursor posterior con workflow `COMPLETED`: evento `WORK_ITEM_REOPENED` de
+  actor `SYSTEM`;
+- cursor posterior con workflow ya `IN_PROGRESS`: no-op convergente.
+
+`initialize_work_item_documents` no dispara reapertura: después de un cierre,
+una inicialización válida no crea una nueva revisión documental. Los timestamps
+se conservan para auditoría, pero no participan en la decisión causal.
+
+Consequences: Un retry puede completar una reapertura omitida tras haberse
+confirmado M3/M4, incluso si comparte timestamp con el cierre. Un retry antiguo
+después de un cierre posterior no vuelve a abrir el Work Item. Se mantienen los
+dos commits y no se modifican los contratos persistidos M3/M4; la frontera M5
+duplica únicamente cursores de revisión, no contenido histórico. Toda nueva
+familia de mutación histórica que deba reabrir exigirá un cursor monotónico y
+una ampliación explícita de esta decisión.
+
+Implementation status: Decisión aprobada, documentada e implementada. M5 está
+`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`, todavía no completado ni
+congelado.
+
+Status: Accepted for Milestone 5.

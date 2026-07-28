@@ -458,4 +458,61 @@ describe('WorkItemAuditService with the local M1-M4 stack', () => {
     expect(testing.content).toContain('The active version executed successfully');
     await expectM4DoesNotChangeWorkItemOrAiContext(fixture);
   });
+
+  it('uses the latest execution per active test case for closure readiness', async () => {
+    const fixture = await createFixture();
+    await fixture.audit.initialize({ workItemId: fixture.workItemId });
+    const plan = await fixture.audit.defineTestPlan({
+      workItemId: fixture.workItemId,
+      expectedAuditRevision: 0,
+      expectedPlanRevision: 0,
+      idempotencyKey: 'closure-readiness-plan',
+      purpose: 'Verify structured closure readiness.',
+      declaredActor: 'integration-test',
+      testCases: [
+        {
+          title: 'Recover a failed execution',
+          objective: 'Use only the latest result.',
+          verificationMethod: 'AUTOMATED',
+          expectedOutcome: 'The latest execution passes.',
+        },
+      ],
+    });
+    const testCaseId = plan.testCases[0]!.testCaseId;
+    await fixture.audit.recordTestExecution({
+      workItemId: fixture.workItemId,
+      expectedAuditRevision: 1,
+      expectedPlanRevision: 1,
+      idempotencyKey: 'closure-readiness-failed',
+      planId: plan.planId,
+      planRevision: plan.planRevision,
+      testCaseId,
+      executionMethod: 'AUTOMATED',
+      outcome: 'FAILED',
+      summary: 'The first execution exposed a defect.',
+      declaredActor: 'integration-test',
+    });
+    await expect(fixture.audit.getClosureReadiness(fixture.workItemId)).resolves.toMatchObject({
+      ready: false,
+      testCases: [{ testCaseId, latestOutcome: 'FAILED' }],
+    });
+    await fixture.audit.recordTestExecution({
+      workItemId: fixture.workItemId,
+      expectedAuditRevision: 2,
+      expectedPlanRevision: 1,
+      idempotencyKey: 'closure-readiness-passed',
+      planId: plan.planId,
+      planRevision: plan.planRevision,
+      testCaseId,
+      executionMethod: 'AUTOMATED',
+      outcome: 'PASSED',
+      summary: 'The corrected implementation now passes.',
+      declaredActor: 'integration-test',
+    });
+
+    await expect(fixture.audit.getClosureReadiness(fixture.workItemId)).resolves.toMatchObject({
+      ready: true,
+      testCases: [{ testCaseId, latestOutcome: 'PASSED' }],
+    });
+  });
 });

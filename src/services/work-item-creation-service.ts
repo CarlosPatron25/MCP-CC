@@ -7,7 +7,7 @@ import {
   type WorkItemStatus,
   type WorkItemType,
 } from '../domain/work-item.js';
-import { WorkItemValidationError } from '../errors/workspace-error.js';
+import { WorkItemCreationError, WorkItemValidationError } from '../errors/workspace-error.js';
 import { providerForDocumentLanguage, type DocumentContentProvider } from './document-rendering.js';
 import { ensureWorkspaceDocumentLanguageConfiguration } from '../filesystem/workspace-document-language-configuration.js';
 import {
@@ -15,8 +15,11 @@ import {
   createWorkItemDossier,
   type PersistedWorkItemDossier,
 } from '../filesystem/work-item-dossier.js';
+import { WorkItemLocator } from '../filesystem/work-item-locator.js';
+import { WorkspaceKnowledgeOperationGate } from '../filesystem/workspace-knowledge-operation-gate.js';
 
 export const WORK_ITEM_SCHEMA_VERSION = '1.0.0';
+export const WORK_ITEM_SCHEMA_VERSION_V2 = '2.0.0';
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -107,7 +110,7 @@ function toValidationError(error: z.ZodError): WorkItemValidationError {
   return new WorkItemValidationError('The Work Item input is invalid.', { field });
 }
 
-function normalizeWorkItemId(rallyId: string): string {
+export function normalizeWorkItemId(rallyId: string): string {
   const normalized = rallyId
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -141,9 +144,20 @@ function optionalYamlObject(name: string, property: string, value: string | unde
 }
 
 export function serializeWorkItemYml(workItem: WorkItem): string {
+  const schemaVersion = workItem.schemaVersion ?? WORK_ITEM_SCHEMA_VERSION;
   return [
-    `schemaVersion: ${yamlString(WORK_ITEM_SCHEMA_VERSION)}`,
+    `schemaVersion: ${yamlString(schemaVersion)}`,
     `id: ${yamlString(workItem.id)}`,
+    ...(workItem.iteration === undefined
+      ? []
+      : [
+          'iteration:',
+          `  iterationId: ${yamlString(workItem.iteration.iterationId)}`,
+          ...(workItem.iteration.displayName === undefined
+            ? []
+            : [`  displayName: ${yamlString(workItem.iteration.displayName)}`]),
+          `  storageToken: ${yamlString(workItem.iteration.storageToken)}`,
+        ]),
     `rallyId: ${yamlString(workItem.rallyId)}`,
     `type: ${yamlString(workItem.type)}`,
     `status: ${yamlString(workItem.status)}`,
@@ -153,6 +167,9 @@ export function serializeWorkItemYml(workItem: WorkItem): string {
     ...(workItem.dates.plannedCompletionAt === undefined
       ? []
       : [`  plannedCompletionAt: ${yamlString(workItem.dates.plannedCompletionAt)}`]),
+    ...(workItem.dates.actualCompletionAt === undefined
+      ? []
+      : [`  actualCompletionAt: ${yamlString(workItem.dates.actualCompletionAt)}`]),
     ...optionalYamlObject(
       'responsibility',
       'responsiblePerson',
@@ -209,7 +226,7 @@ function buildManifest(workItem: WorkItem, provider: DocumentContentProvider): s
     `- ${provider.text('type')}: ${workItem.type}`,
     `- ${provider.text('status')}: ${workItem.status}`,
     `- ${provider.text('createdAt')}: ${workItem.createdAt}`,
-    `- ${provider.text('schemaVersion')}: ${WORK_ITEM_SCHEMA_VERSION}`,
+    `- ${provider.text('schemaVersion')}: ${workItem.schemaVersion ?? WORK_ITEM_SCHEMA_VERSION}`,
     '',
     `## ${provider.text('createdDocuments')}`,
     '',
@@ -314,9 +331,14 @@ function buildNextTask(provider: DocumentContentProvider): string {
   );
 }
 
-function buildDossier(workItem: WorkItem, provider: DocumentContentProvider) {
+export function buildWorkItemDossier(
+  workItem: WorkItem,
+  provider: DocumentContentProvider,
+  parentSegments?: string[],
+) {
   return {
     id: workItem.id,
+    ...(parentSegments === undefined ? {} : { parentSegments }),
     directories: ['context', 'evidence', 'snapshots'],
     files: [
       { relativePath: 'WORK_ITEM.yml', content: serializeWorkItemYml(workItem) },
@@ -348,7 +370,18 @@ function toCreateWorkItemResult(
 }
 
 export class WorkItemCreationService {
-  public constructor(private readonly config: WorkspaceConfig) {}
+  private readonly locator: WorkItemLocator;
+  private readonly gate: WorkspaceKnowledgeOperationGate;
+
+  public constructor(private readonly config: WorkspaceConfig) {
+    this.locator = new WorkItemLocator(config.workspaceRoot);
+    this.gate = new WorkspaceKnowledgeOperationGate({
+      workspaceRoot: config.workspaceRoot,
+      conflictError: () => new WorkItemCreationError('Could not create the Work Item safely.'),
+      updateError: () => new WorkItemCreationError('Could not create the Work Item safely.'),
+      recoveryError: () => new WorkItemCreationError('Could not create the Work Item safely.'),
+    });
+  }
 
   public async create(input: unknown): Promise<CreateWorkItemResult> {
     const parsed = CREATE_WORK_ITEM_INPUT_SCHEMA.safeParse(input);
@@ -394,10 +427,13 @@ export class WorkItemCreationService {
 
     await assertWorkItemWorkspaceInitialized(this.config.workspaceRoot);
     await ensureWorkspaceDocumentLanguageConfiguration(this.config.workspaceRoot);
-    const dossier = await createWorkItemDossier(
-      this.config.workspaceRoot,
-      buildDossier(workItem, providerForDocumentLanguage('es-ES')),
-    );
-    return toCreateWorkItemResult(workItem, dossier);
+    return this.gate.runExclusive(async () => {
+      await this.locator.assertIdentifierAvailable(workItem.id);
+      const dossier = await createWorkItemDossier(
+        this.config.workspaceRoot,
+        buildWorkItemDossier(workItem, providerForDocumentLanguage('es-ES')),
+      );
+      return toCreateWorkItemResult(workItem, dossier);
+    });
   }
 }

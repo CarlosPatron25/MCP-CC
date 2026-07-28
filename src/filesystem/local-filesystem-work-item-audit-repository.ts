@@ -24,6 +24,7 @@ import {
   extractDocumentLifecycleInventorySection,
   parseDocumentLifecycleInventorySection,
 } from '../services/manifest-section-compositor.js';
+import { workItemV2BootstrapAccessDecision } from '../services/work-item-v2-bootstrap-marker.js';
 import {
   parsePersistedWorkItem,
   SHARED_TRANSACTION_RELATIVE_PATHS,
@@ -34,8 +35,9 @@ import {
   type WorkItemTransactionFailureMode,
   type WorkItemTransactionFailurePoint,
 } from './work-item-operation-coordinator.js';
+import { WorkItemLocator } from './work-item-locator.js';
+import { WorkspaceKnowledgeOperationGate } from './workspace-knowledge-operation-gate.js';
 
-const SAFE_WORK_ITEM_ID = /^[A-Z0-9]+(?:-[A-Z0-9]+)*$/;
 const M4_HEADING = '## Milestone 4 Audit Inventory';
 
 export const AUDIT_ARTIFACT_RELATIVE_PATHS = {
@@ -85,8 +87,24 @@ function countHeading(content: string, heading: string): number {
  */
 export class LocalFilesystemWorkItemAuditRepository implements WorkItemAuditRepository {
   private readonly coordinator: WorkItemOperationCoordinator;
+  private readonly workspaceGate: WorkspaceKnowledgeOperationGate;
+  private readonly locator: WorkItemLocator;
+  private readonly workspaceRoot: string;
 
-  public constructor(private readonly options: LocalFilesystemWorkItemAuditRepositoryOptions) {
+  public constructor(options: LocalFilesystemWorkItemAuditRepositoryOptions) {
+    this.workspaceRoot = options.workspaceRoot;
+    this.locator = new WorkItemLocator(options.workspaceRoot);
+    this.workspaceGate = new WorkspaceKnowledgeOperationGate({
+      workspaceRoot: options.workspaceRoot,
+      conflictError: () =>
+        new AuditTrackingConflictError(
+          'Another Work Item operation holds the shared exclusive lock.',
+        ),
+      updateError: () =>
+        new AuditTrackingUpdateError('The audit tracking update could not be confirmed safely.'),
+      recoveryError: () =>
+        new AuditLedgerCorruptError('The audit tracking data cannot be read safely.'),
+    });
     this.coordinator = new WorkItemOperationCoordinator({
       workspaceRoot: options.workspaceRoot,
       allowedRelativePaths: AUDIT_COMMIT_RELATIVE_PATHS,
@@ -111,28 +129,33 @@ export class LocalFilesystemWorkItemAuditRepository implements WorkItemAuditRepo
       snapshot: WorkItemAuditSnapshot,
     ) => Promise<AuditRepositoryDecision<Result>> | AuditRepositoryDecision<Result>,
   ): Promise<Result> {
-    const dossierDirectory = await this.dossierDirectory(workItemId);
-    return this.coordinator.runExclusive(workItemId, dossierDirectory, async () => {
-      const snapshot = await this.readSnapshot(dossierDirectory);
-      const decision = await decide(snapshot);
-      if (decision.commit === undefined) {
-        return decision.result;
-      }
-
-      this.assertCommitMatchesSnapshot(snapshot, decision.commit.initialization);
-      const replacements = this.toReplacements(decision.commit.artifacts, snapshot);
-      await this.coordinator.commit(workItemId, dossierDirectory, replacements, async () => {
-        const committed = await this.readSnapshot(dossierDirectory);
-        if (committed.tracking.status !== 'INITIALIZED') {
-          throw new AuditLedgerCorruptError('The audit tracking data cannot be read safely.');
+    return this.workspaceGate.runExclusive(async () => {
+      const dossierDirectory = await this.dossierDirectory(workItemId);
+      return this.coordinator.runExclusive(workItemId, dossierDirectory, async () => {
+        const snapshot = await this.readSnapshot(workItemId, dossierDirectory);
+        const decision = await decide(snapshot);
+        if (decision.commit === undefined) {
+          return decision.result;
         }
-        decision.commit?.validateCommittedSnapshot(committed);
+
+        this.assertCommitMatchesSnapshot(snapshot, decision.commit.initialization);
+        const replacements = this.toReplacements(decision.commit.artifacts, snapshot);
+        await this.coordinator.commit(workItemId, dossierDirectory, replacements, async () => {
+          const committed = await this.readSnapshot(workItemId, dossierDirectory);
+          if (committed.tracking.status !== 'INITIALIZED') {
+            throw new AuditLedgerCorruptError('The audit tracking data cannot be read safely.');
+          }
+          decision.commit?.validateCommittedSnapshot(committed);
+        });
+        return decision.result;
       });
-      return decision.result;
     });
   }
 
-  private async readSnapshot(dossierDirectory: string): Promise<WorkItemAuditSnapshot> {
+  private async readSnapshot(
+    workItemId: string,
+    dossierDirectory: string,
+  ): Promise<WorkItemAuditSnapshot> {
     const workItemPath = resolvePathWithinRoot(dossierDirectory, 'WORK_ITEM.yml');
     const manifestPath = resolvePathWithinRoot(
       dossierDirectory,
@@ -148,6 +171,17 @@ export class LocalFilesystemWorkItemAuditRepository implements WorkItemAuditRepo
       manifestPath,
       () => new DocumentNotInitializedError('The document lifecycle has not been initialized.'),
     );
+    const bootstrapAccess = workItemV2BootstrapAccessDecision(
+      this.workspaceRoot,
+      workItemId,
+      manifest,
+    );
+    if (bootstrapAccess === 'INVALID') {
+      throw new AuditLedgerCorruptError('The Work Item v2 bootstrap marker is invalid.');
+    }
+    if (bootstrapAccess === 'DENY_PENDING') {
+      throw new AuditTrackingConflictError('The Work Item v2 bootstrap is still in progress.');
+    }
     const lifecycleMetadata = this.readAndValidateM3Lifecycle(manifest);
     await this.assertManagedM3Files(dossierDirectory);
     await this.assertRequiredDirectory(
@@ -321,31 +355,7 @@ export class LocalFilesystemWorkItemAuditRepository implements WorkItemAuditRepo
   }
 
   private async dossierDirectory(workItemId: string): Promise<string> {
-    if (!SAFE_WORK_ITEM_ID.test(workItemId)) {
-      throw new WorkItemNotFoundError('The requested active Work Item does not exist.');
-    }
-    const workspaceDirectory = resolvePathWithinRoot(this.options.workspaceRoot, '.ws-workspace');
-    const activeDirectory = resolvePathWithinRoot(workspaceDirectory, 'active');
-    await this.assertRequiredDirectory(
-      workspaceDirectory,
-      () =>
-        new WorkspaceNotInitializedError(
-          'The workspace must be initialized before accessing a Work Item.',
-        ),
-    );
-    await this.assertRequiredDirectory(
-      activeDirectory,
-      () =>
-        new WorkspaceNotInitializedError(
-          'The workspace must be initialized before accessing a Work Item.',
-        ),
-    );
-    const dossierDirectory = resolvePathWithinRoot(activeDirectory, workItemId);
-    await this.assertRequiredDirectory(
-      dossierDirectory,
-      () => new WorkItemNotFoundError('The requested active Work Item does not exist.'),
-    );
-    return dossierDirectory;
+    return (await this.locator.locate(workItemId)).dossierDirectory;
   }
 
   private async assertParentDirectory(

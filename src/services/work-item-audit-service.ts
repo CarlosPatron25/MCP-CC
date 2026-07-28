@@ -89,6 +89,18 @@ export interface GetWorkItemTrackingResult {
   content: string;
 }
 
+export interface AuditClosureReadinessResult {
+  ready: boolean;
+  auditRevision: number;
+  activePlanId?: string;
+  activePlanRevision?: number;
+  testCases: Array<{
+    testCaseId: string;
+    latestOutcome: TestExecution['outcome'] | 'NOT_RUN';
+  }>;
+  evidenceReferenceIds: string[];
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -286,6 +298,50 @@ export class WorkItemAuditService {
           relativePath: AUDIT_PROJECTION_RELATIVE_PATHS[trackingType],
           auditRevision: ledger.revision,
           content,
+        },
+      };
+    });
+  }
+
+  /** Structured M4 facts consumed by the M5 structural close review. */
+  public async getClosureReadiness(workItemId: string): Promise<AuditClosureReadinessResult> {
+    return this.repository.withSnapshot(workItemId, (snapshot) => {
+      const ledger = this.requireInitializedSnapshot(snapshot);
+      const activePlan = ledger.testPlans.at(-1);
+      const testCases =
+        activePlan?.testCases.map((testCase) => {
+          const latest = ledger.testExecutions
+            .filter(
+              (execution) =>
+                execution.planId === activePlan.planId &&
+                execution.planRevision === activePlan.planRevision &&
+                execution.testCaseId === testCase.testCaseId,
+            )
+            .sort(
+              (left, right) =>
+                right.recordedAt.localeCompare(left.recordedAt) || right.id.localeCompare(left.id),
+            )
+            .at(0);
+          return {
+            testCaseId: testCase.testCaseId,
+            latestOutcome: latest?.outcome ?? ('NOT_RUN' as const),
+          };
+        }) ?? [];
+      return {
+        result: {
+          ready:
+            activePlan !== undefined &&
+            testCases.length > 0 &&
+            testCases.every((testCase) => testCase.latestOutcome === 'PASSED'),
+          auditRevision: ledger.revision,
+          ...(activePlan === undefined
+            ? {}
+            : {
+                activePlanId: activePlan.planId,
+                activePlanRevision: activePlan.planRevision,
+              }),
+          testCases,
+          evidenceReferenceIds: ledger.evidenceReferences.map((entry) => entry.id).sort(),
         },
       };
     });

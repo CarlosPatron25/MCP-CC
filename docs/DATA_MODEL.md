@@ -1,6 +1,6 @@
 # Data model
 
-The following contracts describe the implemented local M1–M4 model. Required
+The following contracts describe the implemented local M1–M4.1 model. Required
 fields are marked Required, nullable user choices are Optional, values set by
 the system are Generated, and later lifecycle fields are Future.
 
@@ -153,7 +153,7 @@ explicit refresh. It contains selected current audit facts, excludes physical
 and logical locations and evidence content, and is bounded to 16 KiB by
 complete semantic units.
 
-## Milestone 4.1 rendering metadata (design frozen; implementation pending manual validation)
+## Milestone 4.1 rendering metadata (completed and frozen)
 
 M4.1A introduces no domain field and changes neither `WorkItem` nor the M4
 audit ledger. Its frozen M4.1B persistence design adds technical rendering
@@ -172,5 +172,145 @@ metadata only for Work Items created after M4.1B implementation:
 `EN_BASELINE_V1`; the latter represents the absence of a manifest marker in
 historical English artifacts, not a selectable language. These records are not
 functional input, business data, audit entries, or fields of the domain
-`WorkItem` contract. M4.1B is `IMPLEMENTED — PENDING MANUAL IBM BOB
-VALIDATION`; historical dossiers receive no migration or rewrite.
+`WorkItem` contract. M4.1B passed automatic and manual IBM Bob validation;
+Milestone 4.1 is `COMPLETED — FROZEN`. Historical dossiers receive no migration
+or rewrite.
+
+## Modelo de conocimiento implementado de Milestone 5
+
+**Estado:** `IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. Los tipos de
+esta sección describen el contrato implementado; el estado no declara
+validación manual, cierre ni congelación de M5.
+
+### Fuente estructurada y autoridad
+
+La única fuente estructurada M5 es
+`.ws-workspace/records/KNOWLEDGE_BASE.json`, con schema estricto `1.0.0`,
+`knowledgeRevision`, operaciones append-only e índice global de idempotencia.
+Permanece separada de `records/AUDIT_LEDGER.json`; el ledger M4 continúa siendo
+autoridad de decisiones, checkpoints M4, planes, ejecuciones y referencias de
+evidencia.
+
+Cada operación M5 conserva UUID v4, revisión resultante, clave de idempotencia,
+fingerprint SHA-256, timestamp de `Clock`, actor `ParticipantRef | SYSTEM` y uno
+o más eventos tipados. El estado actual se deriva reproduciendo operaciones;
+Markdown, manifest, catálogo y vistas de sesión son proyecciones.
+
+Cada manifest M5 proyecta `Knowledge revision` como watermark de la revisión
+global vigente en el último commit que afectó a ese dossier. No es una segunda
+autoridad ni tiene que coincidir con la revisión global actual después de una
+mutación de otro Work Item. La validación del dossier usa su
+`workItemRevision`, estado y contenido autoritativo, normalizando ese watermark
+al comparar una proyección no afectada.
+
+### Work Item, iteración y estado
+
+M5 añade un contrato `WORK_ITEM.yml` v2 para creación nueva y un codec dual que
+lee v1/v2 sin reescribir al leer. `create_work_item` conserva el contrato M2;
+la creación M5 v2 añade `IterationRef` y responsable principal.
+
+El manifest de un dossier creado por v2 incluye metadata interna de bootstrap:
+schema de marcador y huella SHA-256 de la petición normalizada completa. La
+huella no es una segunda fuente funcional ni contiene la clave o identidad en
+claro; sólo vincula un posible estado parcial tras caída con su retry exacto.
+
+```text
+IterationRef {
+  iterationId
+  displayName?
+  storageToken
+}
+
+CanonicalWorkItemStatus =
+  IN_PROGRESS | COMPLETED | CANCELLED
+```
+
+La base M5 es autoridad del estado canónico. La proyección legacy usa `CLOSED`
+para `COMPLETED`, `CANCELLED` para `CANCELLED` y `REOPENED` al reabrir; los
+valores históricos restantes se interpretan como `IN_PROGRESS` tras
+inicializar el workflow. `KNOWLEDGE_BASE.json` y YAML se confirman juntos.
+Completar no
+mueve la carpeta.
+
+Cada evento `WORK_ITEM_COMPLETED` conserva además el límite histórico visible
+en el momento del cierre:
+
+```text
+HistoricalMutationBoundary {
+  m3DocumentRevisions: Record<ManagedDocumentType, positive integer>
+  m4AuditRevision: non-negative integer
+}
+```
+
+Este fence se reemplaza en cada nuevo cierre. No duplica documentos ni el
+ledger M4: sólo registra sus cursores confirmados para decidir causalmente si
+una mutación histórica posterior debe reabrir.
+
+### Participantes y procedencia
+
+```text
+ParticipantRef {
+  participantId
+  displayName
+}
+```
+
+Cada workflow M5 tiene exactamente un responsable y cero o más colaboradores.
+Transferencias, altas y bajas son eventos inmutables. La identidad tiene
+assurance `DECLARED`: se valida contra el estado persistido, pero no se afirma
+autenticación.
+
+La procedencia distingue como mínimo `MANUAL`, `AI_INFERRED`,
+`HUMAN_CONFIRMED`, `SYSTEM_CALCULATED` e
+`IMPORTED_PENDING_VALIDATION`. Confirmar o modificar conocimiento crea un
+evento nuevo; una inferencia no oficializa por sí sola estado, responsabilidad,
+relaciones críticas o catálogo.
+
+### Sesiones, snapshots y checkpoints
+
+Una `WorkSession` derivada de `KNOWLEDGE_BASE.json` tiene estado `ACTIVE` o `SUSPENDED`;
+sólo puede existir una activa por `participantId`. Activar confirma siempre un
+snapshot técnico. Un cambio de sesión confirma en una operación el snapshot y
+checkpoint de origen, su suspensión, el snapshot de destino y su activación.
+
+Un snapshot persiste únicamente paths relativos, SHA-256, tamaños, metadata
+auxiliar, cambios `ADDED`, `MODIFIED`, `DELETED`, `UNCHANGED` o `REVERTED`, y
+estado Git seguro cuando esté disponible. Nunca contiene contenido fuente ni
+la raíz absoluta.
+
+### Relaciones, conceptos y dossier
+
+Las relaciones mínimas son `RELATED_TO`, `DEPENDS_ON`, `PART_OF` y `REPLACES`.
+Se almacenan como aristas semánticas únicas; las inversas se derivan y nunca
+alteran el layout.
+
+La consulta de conocimiento relacionado devuelve por candidato su tipo,
+`IterationRef`, clasificación y coincidencias explícitas de relaciones,
+conceptos y componentes. Las relaciones incluyen arista, perspectiva,
+explicación, evidencia y procedencia; las coincidencias de componente y
+concepto enlazan la consolidación y el evento/procedencia que las sustentan.
+También separa las propuestas locales del Work Item y el catálogo oficial
+`projectConcepts`, que contiene únicamente conceptos aprobados con sus trazas
+de propuesta y aprobación. Una ocurrencia conceptual es una frase/token exacta
+normalizada y se etiqueta `CONFIRMED_TEXT_OCCURRENCE`; no crea una relación
+semántica implícita. `matchReasons` distingue coincidencia `TYPE` y `ITERATION`;
+el orden determinista no constituye ranking semántico.
+
+Una propuesta de concepto contiene identidad, nombre normalizado, explicación,
+entre 1 y 500 `evidenceReferenceIds` UUID v4, fingerprint y estado `PENDING`,
+`APPROVED` o `REJECTED`. Rechazar no modifica el catálogo; aprobar requiere
+actor humano declarado y confirmación.
+
+Las consolidaciones M5 estructuradas proyectan
+`09_FINAL_REPORT.md`, `10_FUNCTIONAL_OVERVIEW.md`,
+`11_IMPLEMENTATION.md` y `12_TESTING.md`. Estos documentos no amplían el enum
+M3 y no son editables como Markdown.
+
+Una mutación histórica M3/M4 seguida de reapertura automática se representa
+mediante dos commits físicos secuenciales: primero la fuente histórica y
+después `KNOWLEDGE_BASE.json` con `WORK_ITEM_REOPENED`. El segundo commit relee
+el estado y compara el cursor de revisión M3/M4 con
+`lastCompletionBoundary`. Converge a no-op si el cursor ya estaba incluido o el
+Work Item está `IN_PROGRESS`; no existe una transacción física
+cross-repository ni una idempotency key compartida entre ambas fases. Los
+timestamps se conservan para auditoría, pero no deciden causalidad.

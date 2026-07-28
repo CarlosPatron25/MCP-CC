@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join, parse } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -59,5 +59,37 @@ describe('workspace configuration', () => {
     await expect(loadWorkspaceConfig({ WS_WORKSPACE_ROOT: fileRoot })).rejects.toBeInstanceOf(
       ConfigurationError,
     );
+  });
+
+  it('accepts a separate readable project source root', async () => {
+    const root = await createTemporaryWorkspaceRoot();
+    const sourceParent = await createTemporaryWorkspaceRoot();
+    temporaryRoots.push(root, sourceParent);
+    const source = join(sourceParent, 'source');
+    await mkdir(source);
+
+    await expect(
+      loadWorkspaceConfig({
+        WS_WORKSPACE_ROOT: root,
+        WS_PROJECT_SOURCE_ROOT: source,
+      }),
+    ).resolves.toEqual({
+      workspaceRoot: root,
+      projectSourceRoot: source,
+    });
+  });
+
+  it('rejects overlapping workspace and source roots', async () => {
+    const root = await createTemporaryWorkspaceRoot();
+    temporaryRoots.push(root);
+    const nested = join(root, 'source');
+    await mkdir(nested);
+
+    expect(() =>
+      resolveWorkspaceConfig({
+        WS_WORKSPACE_ROOT: root,
+        WS_PROJECT_SOURCE_ROOT: nested,
+      }),
+    ).toThrow(ConfigurationError);
   });
 });

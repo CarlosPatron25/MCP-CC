@@ -155,6 +155,70 @@ async function abandonAfterOriginalsMoved(
 }
 
 describe('WorkItemOperationCoordinator recovery regressions', () => {
+  it('reclaims a well-formed dead owned lock when no transaction journal exists', async () => {
+    const fixture = await createFixture();
+    const lockDirectory = join(fixture.root, '.ws-workspace', '.locks');
+    const lockPath = join(lockDirectory, `${workItemId}.lifecycle.lock`);
+    await mkdir(lockDirectory, { recursive: true });
+    await writeFile(
+      lockPath,
+      JSON.stringify({
+        schemaVersion: '1.0.0',
+        pid: 2147483647,
+        token: '00000000-0000-4000-8000-000000000111',
+        acquiredAt: '2026-07-28T10:00:00.000Z',
+      }) + '\n',
+      'utf8',
+    );
+    const coordinator = createCoordinator(fixture.root, ['00_MANIFEST.md']);
+
+    await expect(
+      coordinator.runExclusive(workItemId, fixture.dossierDirectory, async () => 'recovered'),
+    ).resolves.toBe('recovered');
+    await expect(stat(lockPath)).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(stat(fixture.transactionDirectory)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('retains live and malformed locks without transaction journals', async () => {
+    const liveFixture = await createFixture();
+    const liveLockDirectory = join(liveFixture.root, '.ws-workspace', '.locks');
+    const liveLockPath = join(liveLockDirectory, `${workItemId}.lifecycle.lock`);
+    const liveContent =
+      JSON.stringify({
+        schemaVersion: '1.0.0',
+        pid: process.pid,
+        token: '00000000-0000-4000-8000-000000000222',
+        acquiredAt: '2026-07-28T10:00:00.000Z',
+      }) + '\n';
+    await mkdir(liveLockDirectory, { recursive: true });
+    await writeFile(liveLockPath, liveContent, 'utf8');
+
+    await expect(
+      createCoordinator(liveFixture.root, ['00_MANIFEST.md']).runExclusive(
+        workItemId,
+        liveFixture.dossierDirectory,
+        async () => undefined,
+      ),
+    ).rejects.toBeInstanceOf(AuditTrackingConflictError);
+    await expect(readFile(liveLockPath, 'utf8')).resolves.toBe(liveContent);
+
+    const malformedFixture = await createFixture();
+    const malformedLockDirectory = join(malformedFixture.root, '.ws-workspace', '.locks');
+    const malformedLockPath = join(malformedLockDirectory, `${workItemId}.lifecycle.lock`);
+    const malformedContent = '{"schemaVersion":"1.0.0","pid":2147483647}\n';
+    await mkdir(malformedLockDirectory, { recursive: true });
+    await writeFile(malformedLockPath, malformedContent, 'utf8');
+
+    await expect(
+      createCoordinator(malformedFixture.root, ['00_MANIFEST.md']).runExclusive(
+        workItemId,
+        malformedFixture.dossierDirectory,
+        async () => undefined,
+      ),
+    ).rejects.toBeInstanceOf(AuditTrackingConflictError);
+    await expect(readFile(malformedLockPath, 'utf8')).resolves.toBe(malformedContent);
+  });
+
   it('retains a replacement lock that is not owned by the releasing operation', async () => {
     const fixture = await createFixture();
     const coordinator = createCoordinator(fixture.root, ['00_MANIFEST.md']);
@@ -495,6 +559,30 @@ describe('WorkItemOperationCoordinator recovery regressions', () => {
         token: '00000000-0000-4000-8000-000000000999',
         purpose: 'RELEASE',
         acquiredAt: '2026-07-24T10:00:00.000Z',
+      }) + '\n',
+      'utf8',
+    );
+    const coordinator = createCoordinator(fixture.root, ['00_MANIFEST.md']);
+
+    await expect(
+      coordinator.runExclusive(workItemId, fixture.dossierDirectory, async () => 'recovered'),
+    ).resolves.toBe('recovered');
+    await expect(stat(recoveryClaimPath)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('reclaims a dead recovery claim even when no transaction journal remains', async () => {
+    const fixture = await createFixture();
+    const lockDirectory = join(fixture.root, '.ws-workspace', '.locks');
+    const recoveryClaimPath = join(lockDirectory, `${workItemId}.recovery.claim`);
+    await mkdir(lockDirectory, { recursive: true });
+    await writeFile(
+      recoveryClaimPath,
+      JSON.stringify({
+        schemaVersion: '1.0.0',
+        pid: 2147483647,
+        token: '00000000-0000-4000-8000-000000000998',
+        purpose: 'RECOVERY',
+        acquiredAt: '2026-07-28T10:00:00.000Z',
       }) + '\n',
       'utf8',
     );

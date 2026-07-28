@@ -12,8 +12,11 @@ import {
   TRACKING_TYPES,
   VERIFICATION_METHODS,
 } from '../domain/work-item-audit.js';
+import { DocumentRevisionConflictError } from '../errors/workspace-error.js';
 import { LocalFilesystemWorkItemAuditRepository } from '../filesystem/local-filesystem-work-item-audit-repository.js';
 import { LocalFilesystemWorkItemDossierRepository } from '../filesystem/local-filesystem-work-item-dossier-repository.js';
+import { LocalFilesystemKnowledgeBaseRepository } from '../filesystem/local-filesystem-knowledge-base-repository.js';
+import { LocalProjectObservationAdapter } from '../filesystem/local-project-observation-adapter.js';
 import { AuditContextSummaryService } from '../services/audit-context-summary-service.js';
 import { AIContextProjectionService } from '../services/ai-context-projection-service.js';
 import { AuditLedgerService } from '../services/audit-ledger-service.js';
@@ -30,6 +33,42 @@ import {
 } from '../services/work-item-creation-service.js';
 import { WorkItemAuditService } from '../services/work-item-audit-service.js';
 import { WorkItemDocumentService } from '../services/work-item-document-service.js';
+import { KnowledgeBaseLedgerService } from '../services/knowledge-base-ledger-service.js';
+import { KnowledgeBaseApplicationService } from '../services/knowledge-base-application-service.js';
+import {
+  CombinedContextSummaryProvider,
+  KnowledgeContextSummaryService,
+} from '../services/knowledge-context-summary-service.js';
+import { M5ProjectionService } from '../services/m5-projection-service.js';
+import {
+  CREATE_WORK_ITEM_V2_INPUT_SCHEMA,
+  WorkItemV2CreationService,
+} from '../services/work-item-v2-creation-service.js';
+import { WorkItemV2BootstrapService } from '../services/work-item-v2-bootstrap-service.js';
+import {
+  ACTIVATE_SESSION_SCHEMA,
+  ADD_COLLABORATOR_SCHEMA,
+  ADD_RELATION_SCHEMA,
+  CANCEL_WORK_ITEM_SCHEMA,
+  COMPLETE_WORK_ITEM_SCHEMA,
+  CONSOLIDATE_DOSSIER_SCHEMA,
+  GET_ACTIVE_SESSION_SCHEMA,
+  GET_RELATED_KNOWLEDGE_SCHEMA,
+  GET_WORKFLOW_SCHEMA,
+  INITIALIZE_WORKFLOW_SCHEMA,
+  PROPOSE_CONCEPT_SCHEMA,
+  RECORD_SESSION_CHECKPOINT_SCHEMA,
+  REMOVE_COLLABORATOR_SCHEMA,
+  REMOVE_RELATION_SCHEMA,
+  REOPEN_WORK_ITEM_SCHEMA,
+  RESOLVE_CONCEPT_SCHEMA,
+  RESOLVE_SEMANTIC_OBSERVATION_SCHEMA,
+  RESUME_SESSION_CONTEXT_SCHEMA,
+  REVIEW_WORK_ITEM_SCHEMA,
+  SUSPEND_SESSION_SCHEMA,
+  SWITCH_SESSION_SCHEMA,
+  TRANSFER_RESPONSIBILITY_SCHEMA,
+} from './m5-input-schemas.js';
 
 const EMPTY_INPUT = z.object({}).strict();
 const INITIALIZE_DOCUMENTS_INPUT = z.object({ workItemId: z.unknown() }).passthrough();
@@ -195,12 +234,41 @@ export function createMcpServer(config: WorkspaceConfig): McpServer {
     new M4ManifestInventoryService(),
     new AuditContextSummaryService(),
   );
+  const idGenerator = new SystemIdGenerator();
+  const knowledgeRepository = new LocalFilesystemKnowledgeBaseRepository({
+    workspaceRoot: config.workspaceRoot,
+  });
+  const knowledgeLedgerService = new KnowledgeBaseLedgerService(clock, idGenerator);
   const workItemDocumentService = new WorkItemDocumentService(
     new LocalFilesystemWorkItemDossierRepository({ workspaceRoot: config.workspaceRoot }),
     new DocumentTemplateService(),
     new ManifestLifecycleService(clock),
     new AIContextProjectionService(),
+    new CombinedContextSummaryProvider([
+      auditService,
+      new KnowledgeContextSummaryService(knowledgeRepository, knowledgeLedgerService),
+    ]),
+  );
+  const knowledgeService = new KnowledgeBaseApplicationService(
+    knowledgeRepository,
+    knowledgeLedgerService,
+    new M5ProjectionService(),
+    config.projectSourceRoot === undefined
+      ? undefined
+      : new LocalProjectObservationAdapter({
+          projectSourceRoot: config.projectSourceRoot,
+        }),
+    clock,
+    idGenerator,
     auditService,
+  );
+  const workItemV2CreationService = new WorkItemV2CreationService(config, clock);
+  const workItemV2BootstrapService = new WorkItemV2BootstrapService(
+    config,
+    workItemV2CreationService,
+    workItemDocumentService,
+    auditService,
+    knowledgeService,
   );
   const server = new McpServer(
     {
@@ -209,7 +277,7 @@ export function createMcpServer(config: WorkspaceConfig): McpServer {
     },
     {
       instructions:
-        'WS Workspace MCP provides secure local Work Item creation, controlled document lifecycle, and auditable Milestone 4 tracking tools. Do not assume closing or external integrations exist.',
+        'WS Workspace MCP provides secure local Work Item creation, controlled document lifecycle, auditable tracking, and Milestone 5 living-knowledge workflows. Identity is declared, project-source observation is read-only, and external integrations are not available.',
     },
   );
 
@@ -278,7 +346,8 @@ export function createMcpServer(config: WorkspaceConfig): McpServer {
     },
     async (input) => {
       try {
-        return asToolResult(await workItemDocumentService.initialize(input));
+        const result = await workItemDocumentService.initialize(input);
+        return asToolResult(result);
       } catch (error) {
         return asToolResult(foundationService.serializeError(error), true);
       }
@@ -310,8 +379,39 @@ export function createMcpServer(config: WorkspaceConfig): McpServer {
     },
     async (input) => {
       try {
-        return asToolResult(await workItemDocumentService.update(input));
+        const result = await workItemDocumentService.update(input);
+        await knowledgeService.autoReopenForExternalMutation({
+          workItemId: result.workItemId,
+          trigger: 'update_work_item_document',
+          idempotencyKey: idGenerator.generate(),
+          cursor: {
+            source: 'M3_DOCUMENT',
+            documentType: result.document.documentType,
+            revision: result.document.revision,
+          },
+        });
+        return asToolResult(result);
       } catch (error) {
+        if (error instanceof DocumentRevisionConflictError) {
+          try {
+            const current = await workItemDocumentService.getDocument({
+              workItemId: input.workItemId,
+              documentType: input.documentType,
+            });
+            await knowledgeService.autoReopenForExternalMutation({
+              workItemId: current.workItemId,
+              trigger: 'update_work_item_document',
+              idempotencyKey: idGenerator.generate(),
+              cursor: {
+                source: 'M3_DOCUMENT',
+                documentType: current.document.metadata.documentType,
+                revision: current.document.metadata.revision,
+              },
+            });
+          } catch (reconciliationError) {
+            return asToolResult(foundationService.serializeError(reconciliationError), true);
+          }
+        }
         return asToolResult(foundationService.serializeError(error), true);
       }
     },
@@ -357,7 +457,18 @@ export function createMcpServer(config: WorkspaceConfig): McpServer {
     },
     async (input) => {
       try {
-        return asToolResult(await auditService.recordDecision(input));
+        const result = await auditService.recordDecision(input);
+        await knowledgeService.autoReopenForExternalMutation({
+          workItemId: result.workItemId,
+          trigger: 'record_decision',
+          idempotencyKey: result.decisionId,
+          cursor: {
+            source: 'M4_AUDIT_ENTRY',
+            entryId: result.decisionId,
+            auditRevision: result.auditRevision,
+          },
+        });
+        return asToolResult(result);
       } catch (error) {
         return asToolResult(foundationService.serializeError(error), true);
       }
@@ -372,7 +483,18 @@ export function createMcpServer(config: WorkspaceConfig): McpServer {
     },
     async (input) => {
       try {
-        return asToolResult(await auditService.recordCheckpoint(input));
+        const result = await auditService.recordCheckpoint(input);
+        await knowledgeService.autoReopenForExternalMutation({
+          workItemId: result.workItemId,
+          trigger: 'record_checkpoint',
+          idempotencyKey: result.checkpointId,
+          cursor: {
+            source: 'M4_AUDIT_ENTRY',
+            entryId: result.checkpointId,
+            auditRevision: result.auditRevision,
+          },
+        });
+        return asToolResult(result);
       } catch (error) {
         return asToolResult(foundationService.serializeError(error), true);
       }
@@ -387,7 +509,18 @@ export function createMcpServer(config: WorkspaceConfig): McpServer {
     },
     async (input) => {
       try {
-        return asToolResult(await auditService.defineTestPlan(input));
+        const result = await auditService.defineTestPlan(input);
+        await knowledgeService.autoReopenForExternalMutation({
+          workItemId: result.workItemId,
+          trigger: 'define_test_plan',
+          idempotencyKey: result.planVersionId,
+          cursor: {
+            source: 'M4_AUDIT_ENTRY',
+            entryId: result.planVersionId,
+            auditRevision: result.auditRevision,
+          },
+        });
+        return asToolResult(result);
       } catch (error) {
         return asToolResult(foundationService.serializeError(error), true);
       }
@@ -402,7 +535,18 @@ export function createMcpServer(config: WorkspaceConfig): McpServer {
     },
     async (input) => {
       try {
-        return asToolResult(await auditService.recordTestExecution(input));
+        const result = await auditService.recordTestExecution(input);
+        await knowledgeService.autoReopenForExternalMutation({
+          workItemId: result.workItemId,
+          trigger: 'record_test_execution',
+          idempotencyKey: result.testExecutionId,
+          cursor: {
+            source: 'M4_AUDIT_ENTRY',
+            entryId: result.testExecutionId,
+            auditRevision: result.auditRevision,
+          },
+        });
+        return asToolResult(result);
       } catch (error) {
         return asToolResult(foundationService.serializeError(error), true);
       }
@@ -418,7 +562,18 @@ export function createMcpServer(config: WorkspaceConfig): McpServer {
     },
     async (input) => {
       try {
-        return asToolResult(await auditService.registerEvidenceReference(input));
+        const result = await auditService.registerEvidenceReference(input);
+        await knowledgeService.autoReopenForExternalMutation({
+          workItemId: result.workItemId,
+          trigger: 'register_evidence_reference',
+          idempotencyKey: result.evidenceReferenceId,
+          cursor: {
+            source: 'M4_AUDIT_ENTRY',
+            entryId: result.evidenceReferenceId,
+            auditRevision: result.auditRevision,
+          },
+        });
+        return asToolResult(result);
       } catch (error) {
         return asToolResult(foundationService.serializeError(error), true);
       }
@@ -438,6 +593,169 @@ export function createMcpServer(config: WorkspaceConfig): McpServer {
         return asToolResult(foundationService.serializeError(error), true);
       }
     },
+  );
+
+  const registerM5Tool = <Schema extends z.ZodObject>(
+    name: string,
+    description: string,
+    inputSchema: Schema,
+    handler: (input: z.output<Schema>) => Promise<unknown>,
+  ): void => {
+    const callback = async (input: z.output<Schema>) => {
+      try {
+        return asToolResult(await handler(input));
+      } catch (error) {
+        return asToolResult(foundationService.serializeError(error), true);
+      }
+    };
+    server.registerTool(
+      name,
+      {
+        description,
+        inputSchema,
+      } as never,
+      callback as never,
+    );
+  };
+
+  registerM5Tool(
+    'create_work_item_v2',
+    'Create a minimal es-ES Work Item in the iteration/type layout and initialize M3, M4, and M5.',
+    CREATE_WORK_ITEM_V2_INPUT_SCHEMA,
+    (input) => workItemV2BootstrapService.create(input),
+  );
+
+  registerM5Tool(
+    'initialize_work_item_workflow',
+    'Explicitly add a historical M3/M4 dossier to the M5 workflow without moving it.',
+    INITIALIZE_WORKFLOW_SCHEMA,
+    (input) => knowledgeService.initializeWorkflow(input),
+  );
+  registerM5Tool(
+    'get_work_item_workflow',
+    'Read canonical M5 state, iteration, participants, and lifecycle review.',
+    GET_WORKFLOW_SCHEMA,
+    (input) => knowledgeService.getWorkflow(input),
+  );
+  registerM5Tool(
+    'activate_work_session',
+    'Activate one developer session and atomically record its required technical snapshot.',
+    ACTIVATE_SESSION_SCHEMA,
+    (input) => knowledgeService.activateSession(input),
+  );
+  registerM5Tool(
+    'switch_work_session',
+    'Atomically checkpoint and suspend the active session, then snapshot and activate the target.',
+    SWITCH_SESSION_SCHEMA,
+    (input) => knowledgeService.switchSession(input),
+  );
+  registerM5Tool(
+    'record_session_checkpoint',
+    'Record a technical snapshot and immutable checkpoint for the active session.',
+    RECORD_SESSION_CHECKPOINT_SCHEMA,
+    (input) => knowledgeService.recordSessionCheckpoint(input),
+  );
+  registerM5Tool(
+    'suspend_work_session',
+    'Record a checkpoint and technical snapshot, then suspend the active session.',
+    SUSPEND_SESSION_SCHEMA,
+    (input) => knowledgeService.suspendSession(input),
+  );
+  registerM5Tool(
+    'get_active_work_session',
+    'Read the one active session for a declared participant.',
+    GET_ACTIVE_SESSION_SCHEMA,
+    (input) => knowledgeService.getActiveSession(input),
+  );
+  registerM5Tool(
+    'resume_work_session_context',
+    'Read the latest checkpoint, technical delta, and open semantic context for resumption.',
+    RESUME_SESSION_CONTEXT_SCHEMA,
+    (input) => knowledgeService.resumeSessionContext(input),
+  );
+  registerM5Tool(
+    'add_work_item_collaborator',
+    'Add one declared collaborator while preserving the single principal invariant.',
+    ADD_COLLABORATOR_SCHEMA,
+    (input) => knowledgeService.addCollaborator(input),
+  );
+  registerM5Tool(
+    'remove_work_item_collaborator',
+    'Remove one declared collaborator with an audited reason.',
+    REMOVE_COLLABORATOR_SCHEMA,
+    (input) => knowledgeService.removeCollaborator(input),
+  );
+  registerM5Tool(
+    'transfer_work_item_responsibility',
+    'Transfer principal responsibility with explicit confirmation and immutable history.',
+    TRANSFER_RESPONSIBILITY_SCHEMA,
+    (input) => knowledgeService.transferResponsibility(input),
+  );
+  registerM5Tool(
+    'add_work_item_relation',
+    'Add one semantic relation without changing either Work Item folder.',
+    ADD_RELATION_SCHEMA,
+    (input) => knowledgeService.addRelation(input),
+  );
+  registerM5Tool(
+    'remove_work_item_relation',
+    'Retire one relation append-only with an audited reason.',
+    REMOVE_RELATION_SCHEMA,
+    (input) => knowledgeService.removeRelation(input),
+  );
+  registerM5Tool(
+    'propose_project_concept',
+    'Propose a project concept with evidence; this never changes the official catalogue.',
+    PROPOSE_CONCEPT_SCHEMA,
+    (input) => knowledgeService.proposeConcept(input),
+  );
+  registerM5Tool(
+    'resolve_project_concept_proposal',
+    'Approve or reject a concept proposal with declared human authorization.',
+    RESOLVE_CONCEPT_SCHEMA,
+    (input) => knowledgeService.resolveConceptProposal(input),
+  );
+  registerM5Tool(
+    'consolidate_work_item_dossier',
+    'Persist structured human knowledge and regenerate the four protected M5 documents.',
+    CONSOLIDATE_DOSSIER_SCHEMA,
+    (input) => knowledgeService.consolidateDossier(input),
+  );
+  registerM5Tool(
+    'review_work_item',
+    'Record a blocking structural review and non-blocking semantic observations.',
+    REVIEW_WORK_ITEM_SCHEMA,
+    (input) => knowledgeService.reviewWorkItem(input),
+  );
+  registerM5Tool(
+    'resolve_semantic_observation',
+    'Resolve an open semantic observation with explicit declared-human confirmation.',
+    RESOLVE_SEMANTIC_OBSERVATION_SCHEMA,
+    (input) => knowledgeService.resolveSemanticObservation(input),
+  );
+  registerM5Tool(
+    'complete_work_item',
+    'Complete a structurally reviewed Work Item after explicit confirmation by its principal.',
+    COMPLETE_WORK_ITEM_SCHEMA,
+    (input) => knowledgeService.completeWorkItem(input),
+  );
+  registerM5Tool(
+    'cancel_work_item',
+    'Cancel an IN_PROGRESS Work Item without deleting its accumulated knowledge.',
+    CANCEL_WORK_ITEM_SCHEMA,
+    (input) => knowledgeService.cancelWorkItem(input),
+  );
+  registerM5Tool(
+    'reopen_work_item',
+    'Explicitly reopen a completed or cancelled Work Item while preserving lifecycle history.',
+    REOPEN_WORK_ITEM_SCHEMA,
+    (input) => knowledgeService.reopenWorkItem(input),
+  );
+  registerM5Tool(
+    'get_related_knowledge',
+    'Return deterministic related Work Items, concepts, components, and Golden candidates.',
+    GET_RELATED_KNOWLEDGE_SCHEMA,
+    (input) => knowledgeService.getRelatedKnowledge(input),
   );
 
   return server;

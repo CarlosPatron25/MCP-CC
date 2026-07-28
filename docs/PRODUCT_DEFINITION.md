@@ -2,11 +2,12 @@
 
 ## Vision
 
-WS Workspace MCP is evolving toward a structured knowledge engine for software
-development Work Items. It retains an understandable dossier for each item of
-work so a person or development AI can resume it without reconstructing its
-history. Salesforce and Rally are the first validated use case, not the
-product's permanent technology boundary.
+La visión vigente establece que WS Workspace construye y mantiene una base de
+conocimiento viva de un proyecto software. Los Work Items son la unidad de
+adquisición incremental: su dossier conserva conocimiento comprensible para
+que una persona o una IA de desarrollo pueda reanudar el trabajo sin
+reconstruir la historia. Salesforce y Rally son el primer caso validado, no la
+frontera tecnológica permanente del producto.
 
 ## Target user
 
@@ -36,7 +37,7 @@ The intended MVP supports exactly four work-item types, local file persistence,
 a controlled document lifecycle, state tracking and an MCP-first interface for
 IBM Bob.
 
-Milestones 1 through 4 are `COMPLETED — FROZEN` and validated. Milestone 1
+Milestones 1 through 4.1 are `COMPLETED — FROZEN` and validated. Milestone 1
 provides the
 secure MCP foundation and workspace initialization. Milestone 2 provides safe,
 manual creation of a DRAFT Work Item and its minimum initial dossier through
@@ -49,8 +50,14 @@ controlled evidence references, deterministic audit projections, and explicit
 bounded AI-context integration. Its automated validation and manual IBM Bob
 validation have passed, and Milestone 4 is completed. M4.1A is a
 `DESIGN APPROVED — FROZEN` documentation/localisation decision; M4.1B is
-`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. Search and all state
-transitions remain future milestone work.
+implemented and has passed automatic and manual IBM Bob validation. Milestone
+4.1 is `COMPLETED — FROZEN`.
+
+Milestone 5 está
+`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. Su contrato y su
+implementación aditiva están disponibles, pero este estado no declara
+validación manual, cierre ni congelación. M1–M4.1 permanecen preservados y
+congelados.
 
 ## M4.1A document-language boundary
 
@@ -60,8 +67,27 @@ immutable snapshot. It neither translates user-provided content nor changes the 
 MCP, Work Item, ledger, locking, recovery, or `AI_CONTEXT` contracts. Historical
 Work Items remain in their persisted English baseline. The configuration and
 snapshot are implemented; no `WS_DOCUMENT_LANGUAGE` runtime variable exists.
-M4.1B is `IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`, M4.1 is not
-completed, and Milestone 5 is `PAUSED`.
+M4.1B passed automatic and manual IBM Bob validation, and Milestone 4.1 is
+`COMPLETED — FROZEN`.
+
+## Incremento de producto Milestone 5
+
+**Hecho verificado:** M1–M4.1 proporcionan la baseline local de quince
+herramientas históricas, dossiers versionados, ledger M4, proyecciones
+protegidas, idempotencia, locking y recovery. M5 amplía esa baseline sin
+retirar ni renombrar dichos contratos.
+
+**Decisión M5:** el incremento introduce una base de conocimiento estructurada
+workspace-level separada del ledger M4, sesiones explícitas, snapshots
+deterministas, participantes, procedencia, relaciones, conceptos,
+consolidación orientada al lector futuro y ciclo de vida lógico. IBM Bob es el
+cliente de referencia, pero las reglas siguen siendo portables mediante MCP y
+puertos de aplicación.
+
+**Implementación:** el contrato completo está en `MILESTONE_5_DESIGN.md`. El
+estado vigente es `IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`; el
+servicio central, sharing, autenticación corporativa, scanner completo, PDF y
+PowerPoint permanecen fuera de M5.
 
 ## Outside the MVP
 
@@ -69,18 +95,18 @@ completed, and Milestone 5 is `PAUSED`.
 - Direct Copado integration.
 - A VS Code extension.
 - Automatic access to Salesforce or corporate repositories.
-- Multi-client or remote-host compatibility as a product requirement.
+- Remote deployment or a multi-client shared service in the local MVP.
 
 ## Future architecture direction
 
 The local-file MVP remains the approved execution architecture through
-Milestone 4; M4.1A is design-only and Milestone 5 is paused. Product evolution
-distinguishes a future general WS
-Workspace Core from future Technology Profiles and Project Profiles. A
+Milestone 5. Product evolution distinguishes a future general WS Workspace
+Core from future Technology Profiles and Project Profiles. A
 Technology Profile may eventually express technology-specific vocabulary and
 conventions; a Project Profile may eventually hold stable, project-wide
-knowledge. Neither has a defined format, persistence mechanism, API, versioning
-model, or loader.
+knowledge. M5 defines only a narrow local concept catalogue, relations and
+knowledge-query boundary; it does not define a complete profile format,
+shared persistence mechanism, API or loader.
 
 The Project Profile is not a Work Item Dossier. A dossier contains generated,
 updated, and auditable knowledge for one work item; a Project Profile is future
@@ -132,7 +158,7 @@ workflow. Manual IBM Bob validation passed with 42/42 tests, 0 failures, and 0
 non-executable tests. The three observations were resolved as contract-valid
 validation precedence and shared-lock behavior, without code changes.
 
-The completed M1–M4 foundation is the valid local
+The completed M1–M4.1 foundation is the valid local
 base for future Core evolution, not a claim that the existing
 `SalesforceContext`, `developmentAlias`, and `rallyId` contracts are already
 neutral. The M4 design and implementation are frozen and Milestone 4 is

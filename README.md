@@ -11,7 +11,7 @@ later reopening of the same work item. The server is intentionally local and
 file-based in its first milestones. It has no external connection to Rally,
 Copado, Salesforce, or corporate systems.
 
-The completed Milestones 1 through 4 are the local, documentary, and
+The completed Milestones 1 through 4.1 are the local, documentary, and
 architectural base from which WS Workspace Core may evolve. They are not yet a
 fully technology-neutral Core: the validated creation contract explicitly
 contains `SalesforceContext`, `developmentAlias`, and `rallyId`. Removing or
@@ -20,24 +20,48 @@ not implied by this product direction.
 
 ## Current state
 
-**Milestones 1 through 4 are completed and officially closed.** Their approved
-designs and implementations are `COMPLETED — FROZEN`. Milestone 4 passed
-automated validation and manual IBM Bob validation with 42/42 tests.
+**Milestones 1 through 4.1 are completed and officially closed.** Their
+approved designs, implementations and validation evidence are frozen.
+Milestone 4 passed automated validation and manual IBM Bob validation with
+42/42 tests. Milestone 4.1B passed automatic validation with 158 tests and
+manual IBM Bob validation.
 
-The server now provides secure creation of an initial DRAFT Work Item dossier
-and its controlled local document lifecycle, append-only decisions and
-checkpoints, one immutable-version test plan, test executions, and controlled
-evidence references. Health inspection, capability discovery, idempotent
-workspace initialization, and explicit derived AI-context refresh remain
-available. Closing, archiving, reopening, and state transitions remain
-unavailable.
+The server provides secure creation and controlled local document lifecycle,
+append-only decisions and checkpoints, immutable-version test planning,
+executions and controlled evidence references. M5 adds workflow, technical
+sessions, living knowledge, logical completion, cancellation and auditable
+reopening. Health inspection, capability discovery, idempotent workspace
+initialization, and explicit derived AI-context refresh remain available.
+Physical archive movement remains unavailable.
 
 Milestone 4 uses the current local file-based workspace. Milestone 4.1A is the
 approved and frozen documentation/localisation design; M4.1B has completed
-automatic and manual IBM Bob validation. Milestone 4.1 is closed and frozen;
-Milestone 5 is ready to start. The product direction distinguishes a
-future WS Workspace Core, Technology Profiles and Project Profiles, without implementing
-or defining any of them today.
+automatic and manual IBM Bob validation. Milestone 4.1 is closed and frozen.
+
+Milestone 5 está
+`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. Su contrato técnico
+definitivo está documentado en
+[MILESTONE_5_DESIGN.md](docs/MILESTONE_5_DESIGN.md), y la batería de validación
+está definida en
+[Pruebas_Milestone_5.md](docs/Pruebas_Milestone_5.md). Este estado no equivale
+a validación manual, cierre ni congelación de M5.
+
+La implementación M5 construye y mantiene una base de conocimiento viva del
+proyecto sobre una única fuente estructurada
+`.ws-workspace/records/KNOWLEDGE_BASE.json`, separada del ledger M4. Incluye
+sesiones, snapshots técnicos, participantes, procedencia, relaciones,
+conceptos, consolidación documental y ciclo de vida lógico. Technology
+Profiles, Project Profiles completos, sincronización y servicio central
+continúan fuera del alcance actual.
+
+La reapertura automática posterior a una mutación M3/M4 es retry-safe y
+convergente, pero usa dos commits físicos secuenciales; no es una transacción
+cross-repository. Cada cierre conserva un fence con las revisiones M3 por
+documento y la revisión M4 confirmadas dentro del knowledge gate. El bridge
+reabre únicamente ante un cursor histórico posterior a ese fence, sin depender
+de la resolución del timestamp. En cada dossier, `Knowledge revision` es el
+watermark de la revisión global vigente en su último commit afectado y no
+obliga a reescribir dossiers ajenos.
 Sharing, synchronization, corporate folders, internal servers, and a Central
 Knowledge Service remain future options that have not been selected.
 
@@ -49,6 +73,29 @@ manifest rendering snapshot for new Work Items. M4.1B is `IMPLEMENTED`, with
 automatic validation and manual IBM Bob validation `PASS`. Milestone 4.1 is
 `COMPLETED — FROZEN`; no `WS_DOCUMENT_LANGUAGE` variable or MCP contract change
 exists, and historical Work Items retain their English baseline.
+
+## Estado de diseño e implementación de Milestone 5
+
+**Hecho verificado:** la implementación preserva las quince herramientas
+históricas M1–M4.1 y añade contratos MCP M5 sin renombrar ni retirar los
+anteriores. Mantiene persistencia local, dossiers históricos, ledger M4, locks,
+recovery y perfiles de rendering.
+
+**Decisión M5:** el diseño aprobado introduce
+`.ws-workspace/records/KNOWLEDGE_BASE.json` como única fuente M5, separada de
+`records/AUDIT_LEDGER.json`; `WS_PROJECT_SOURCE_ROOT` como segunda raíz
+explícita y de solo lectura; layout dual; estados canónicos
+`IN_PROGRESS`, `COMPLETED` y `CANCELLED` con proyección legacy; identidad
+`DECLARED`; cierre lógico sin archivado físico; y fence causal para el bridge
+M3/M4. Véanse ADR-018, ADR-019, ADR-020 y ADR-021.
+
+**Implementación:** M5 está
+`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. La validación automática
+final está en `PASS` con 37 archivos y 276 pruebas, además del smoke del binario
+compilado con 38 herramientas MCP. La evidencia y la prueba manual pendiente se
+registran en [Pruebas_Milestone_5.md](docs/Pruebas_Milestone_5.md). M5 no puede
+declararse completado sin validación manual IBM Bob y cierre documental
+aprobado.
 
 ## Requirements
 
@@ -73,11 +120,14 @@ The root must already exist, be a readable and writable directory, and not be a
 filesystem volume root. The server never chooses a fallback path.
 
     $env:WS_WORKSPACE_ROOT = 'C:\\WS-Workspace'
+    $env:WS_PROJECT_SOURCE_ROOT = 'C:\\ruta\\de\\proyecto\\solo-lectura'
     npm.cmd run build
     npm.cmd run start
 
 For local development, replace start with npm.cmd run dev. The process uses
 stdio for JSON-RPC; diagnostics are sent only to stderr.
+`WS_PROJECT_SOURCE_ROOT` es opcional para M1–M4.1, pero las operaciones M5 que
+capturan snapshots requieren una raíz separada, válida y de sólo lectura.
 
 ## Basic technical test
 
@@ -85,16 +135,13 @@ After building, run:
 
     npm.cmd run smoke
 
-The smoke client creates and removes its own temporary workspace. It starts the
-compiled server through stdio, discovers exactly 15 tools, initializes a
-workspace, creates a Work Item, initializes the Milestone 3 documents, reads
-and updates one document at its current revision, initializes Milestone 4
-tracking, records every approved M4 entry type, reads a closed tracking view,
-performs an exact retry and a controlled conflict, reads all four closed
-tracking views, and explicitly refreshes AI context. It checks revisions,
-returned identifiers, capabilities, cleanup, and that no absolute
-temporary-workspace path is returned. It never uses `C:\\WS-Workspace` or
-another user workspace for this test.
+El smoke actual crea y elimina sus propias raíces temporales de workspace y
+proyecto. Inicia el servidor compilado por stdio, verifica que las quince
+herramientas históricas siguen presentes y recorre contratos representativos
+M1–M5, incluida la fuente única de conocimiento, activación y cambio de sesión,
+snapshot técnico y creación v2. También comprueba revisiones, identificadores,
+capabilities, limpieza y ausencia de rutas absolutas en las respuestas. Nunca
+usa `C:\\WS-Workspace` ni otro workspace real para esta prueba.
 
 ## Create a Work Item
 
@@ -255,8 +302,8 @@ Milestone 4.1 is officially `COMPLETED — FROZEN`.
 
 ## IBM Bob
 
-IBM Bob integration is verified. Register the server in IBM Bob's `mcp.json`
-with this configuration:
+La configuración operativa vigente para M5 debe registrar el servidor en
+`mcp.json` con ambas raíces:
 
 ```json
 {
@@ -265,7 +312,8 @@ with this configuration:
       "command": "node",
       "args": ["C:\\US-Workspace-MCP\\dist\\index.js"],
       "env": {
-        "WS_WORKSPACE_ROOT": "C:\\WS-Workspace"
+        "WS_WORKSPACE_ROOT": "C:\\WS-Workspace",
+        "WS_PROJECT_SOURCE_ROOT": "C:\\ruta\\de\\proyecto\\solo-lectura"
       },
       "alwaysAllow": ["health_check", "get_server_capabilities"]
     }
@@ -274,9 +322,16 @@ with this configuration:
 ```
 
 IBM Bob launches `node dist/index.js` and communicates with the server over
-MCP JSON-RPC on stdio. `WS_WORKSPACE_ROOT` is passed to the child process and
-is the only location in which the server may initialize or manage workspace
-content.
+MCP JSON-RPC on stdio. `WS_WORKSPACE_ROOT` es la única raíz escribible.
+`WS_PROJECT_SOURCE_ROOT` es una raíz distinta de observación técnica y sólo
+lectura para el MCP. Las dos deben ser absolutas, existentes, directorios que
+no sean raíces de volumen, y no pueden coincidir, solaparse ni contenerse.
+
+La ausencia de `WS_PROJECT_SOURCE_ROOT` conserva las operaciones M1–M4.1, pero
+la activación de sesiones M5 falla de forma segura. Después de cambiar
+`mcp.json`, reinicia IBM Bob antes de ejecutar herramientas. La configuración
+histórica de la validación de M1 sólo declaraba `WS_WORKSPACE_ROOT`; no es la
+configuración operativa suficiente para las sesiones M5.
 
 `C:\\US-Workspace-MCP` and `C:\\WS-Workspace` have deliberately different
 roles. The first contains the source code and compiled server; the second is
@@ -289,7 +344,7 @@ should remain subject to the host's normal confirmation policy.
 
 ## Product evolution direction
 
-The target product direction has three conceptual layers:
+The product direction retains three conceptual layers:
 
 - **WS Workspace Core:** general Work Item, document, context, manifest,
   revision, decision, checkpoint, evidence, relation, component, functional
@@ -299,10 +354,13 @@ The target product direction has three conceptual layers:
 - **Project Profile:** future stable, project-wide knowledge. It is distinct
   from the generated, updated, and auditable Work Item Dossier.
 
-No profile, loading mechanism, shared persistence, synchronization, service,
-API, database, or central architecture is designed or implemented. See
-[ARCHITECTURE_EVOLUTION_POST_M3.md](docs/ARCHITECTURE_EVOLUTION_POST_M3.md) and
-ADR-016 for the approved boundaries.
+M5 implements a narrow local knowledge-base contract, a concept catalogue,
+relations and future import classifications without implementing a complete
+Technology Profile or Project Profile. No shared persistence, synchronization,
+service, API, database, central architecture, or complete profile loader is
+implemented. See
+[ARCHITECTURE_EVOLUTION_POST_M3.md](docs/ARCHITECTURE_EVOLUTION_POST_M3.md),
+ADR-016 and ADR-018 for the approved boundaries.
 
 ## Milestone 1 Validation
 

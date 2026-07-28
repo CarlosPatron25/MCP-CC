@@ -51,8 +51,10 @@ general container for the stable knowledge of an entire project.
 
 ## Deferred choices
 
-No profile format, schema, API, loader, versioning, persistence mechanism, or
-implementation is selected. Sharing, synchronization, corporate folders,
+No complete profile format, API, loader or shared persistence mechanism is
+selected. M5 now selects a narrow local schema for incremental knowledge,
+relations and concepts, but it does not constitute a Technology Profile or
+Project Profile completo. Sharing, synchronization, corporate folders,
 internal servers, a Central Knowledge Service, databases, multi-tenancy, SaaS,
 cloud deployment, and enterprise authentication are future options only.
 
@@ -66,19 +68,41 @@ This review does not reopen or modify M1–M3. At the time of this review,
 Milestone 4 was unstarted and subject to a separate design review. Milestone 4
 has since been designed, implemented, validated, and officially closed under
 its own frozen contract. Technology Profiles, Project Profiles, and sharing
-architecture were not part of Milestone 4 and remain unimplemented.
+architecture were not part of Milestone 4 and remain unimplemented. M5
+introduces only the approved local knowledge-base boundary and leaves complete
+profiles and sharing unimplemented.
 
 ## Current status after M4.1B implementation
 
-Milestones 1–4 are `COMPLETED — FROZEN`. M4.1A is
+Milestones 1–4.1 are `COMPLETED — FROZEN`. M4.1A is
 `DESIGN APPROVED — FROZEN`: it documents workspace-local `es-ES` rendering,
 manifest-resident technical snapshot metadata, provider boundaries and
 historical English compatibility. M4.1B implements that frozen design without
-changing the conceptual layering and is `IMPLEMENTED — PENDING MANUAL IBM BOB
-VALIDATION`; Milestone 5 is `PAUSED`.
+changing the conceptual layering and has passed automatic and manual IBM Bob
+validation.
+
+Milestone 5 está
+`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. Su contrato técnico y la
+implementación local aditiva están disponibles; M5 todavía no está validado
+manualmente, completado ni congelado. La implementación avanza la visión hacia
+una base de conocimiento viva preservando la separación entre conocimiento
+estructurado del proyecto y cada Work Item Dossier.
+
+Approved M5 boundaries are:
+
+- one workspace-level M5 source in
+  `.ws-workspace/records/KNOWLEDGE_BASE.json`, separate from M4;
+- an explicit read-only `WS_PROJECT_SOURCE_ROOT`;
+- dual historical/M5 dossier layouts without automatic migration;
+- canonical lifecycle with a compatible legacy projection;
+- stable but declared participant identity; and
+- logical completion without physical archive movement;
+- a causal M3/M4 revision fence for the sequential historical auto-reopen
+  bridge.
 
 ## Authority
 
-This document is explanatory. ADR-016 records the accepted architectural
-decision; the completed milestone designs, requirements, data model, and
-validation evidence remain historical contracts.
+This document is explanatory. ADR-016 records the conceptual layering;
+ADR-018, ADR-019, ADR-020 and ADR-021 record the approved M5 evolution. Completed
+milestone designs and validation evidence remain historical contracts and are
+not rewritten by this update.

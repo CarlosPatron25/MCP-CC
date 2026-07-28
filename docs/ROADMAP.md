@@ -105,14 +105,38 @@ marker, historical compatibility, and M1–M4 regression were validated. The
 observations were non-blocking. The language is not a runtime variable or MCP
 parameter, and no tool contract changed. Milestone 4.1 is `COMPLETED — FROZEN`.
 
-## Milestone 5: Closing, Archive and Reopening - READY TO START
+## Milestone 5: Ciclo asistido y base de conocimiento viva — IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION
 
-Implement transition validation, generated actual completion dates, controlled
-archive handling, final reports and auditable reopening.
-This milestone continues to use local file persistence.
+**Hecho verificado:** M1–M4.1 permanecen completados y congelados. La
+implementación aditiva M5 preserva las quince herramientas históricas e
+incorpora sesiones, snapshots técnicos, participantes M5, relaciones entre
+Work Items, catálogo de conceptos, consolidación, cierre y reapertura lógica.
 
-Status: ready to start. This roadmap entry is not a frozen technical contract
-until separately planned and approved.
+**Decisión aprobada:** [MILESTONE_5_DESIGN.md](MILESTONE_5_DESIGN.md) es el
+contrato técnico de M5. El alcance introduce de forma incremental:
+
+- fuente estructurada única M5 en
+  `.ws-workspace/records/KNOWLEDGE_BASE.json`, separada del ledger M4;
+- `WS_PROJECT_SOURCE_ROOT` como segunda raíz explícita de solo lectura;
+- creación v2 y localización dual sin migrar dossiers históricos;
+- sesiones, snapshots deterministas, checkpoints y reanudación;
+- responsable, colaboradores y procedencia declarada;
+- dossier híbrido y proyecciones orientadas al lector futuro;
+- relaciones, conceptos y consulta de conocimiento relacionado; y
+- revisión, cierre lógico, cancelación y reapertura auditable.
+
+Completar no mueve el dossier a `.ws-workspace/archive`; el archivado físico
+queda diferido. Los estados canónicos M5 son `IN_PROGRESS`, `COMPLETED` y
+`CANCELLED`, con proyección compatible para contratos históricos.
+
+**Implementación y validación:** los incrementos compatibles de contrato,
+workflow, observación, sesiones, dossier, relaciones, conceptos, revisión y
+MCP están implementados. El estado vigente es
+`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. La matriz automática y el
+plan Bob se mantienen en
+[Pruebas_Milestone_5.md](Pruebas_Milestone_5.md); cualquier resultado sin
+evidencia final permanece `PENDIENTE`. El cierre requiere validación manual y
+aprobación separada, por lo que M5 no está completado ni congelado.
 
 ## Post-MVP architecture options
 
@@ -121,8 +145,9 @@ with future Technology Profiles and Project Profiles. Sharing, synchronization,
 corporate folders, internal servers, a Central Knowledge Service, central APIs,
 databases, multi-tenancy, SaaS, cloud deployment, and enterprise authentication
 are not selected.
-This is not a delivery milestone, does not alter the scope of Milestones 3–5,
-and must not be implemented until separately planned and approved.
+This is not a delivery milestone, does not alter the frozen scope of
+Milestones 3–4.1 or the approved M5 contract, and must not be implemented until
+separately planned and approved.
 
 ## Optional future milestone: Rally or Copado
 

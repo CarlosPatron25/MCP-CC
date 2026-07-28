@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, randomUUID } from 'node:crypto';
 import { lstat, mkdir, open, readFile, readdir, rename, rm, rmdir } from 'node:fs/promises';
 import { dirname, isAbsolute, relative } from 'node:path';
@@ -82,6 +83,8 @@ interface OwnedFile {
   birthtimeMs: number;
 }
 
+const activeOperationLocks = new AsyncLocalStorage<ReadonlyMap<string, string>>();
+
 interface RestorationAction {
   replacement: JournalReplacement;
   targetPath: string;
@@ -140,11 +143,22 @@ export class WorkItemOperationCoordinator {
     dossierDirectory: string,
     operation: () => Promise<T>,
   ): Promise<T> {
+    const lockIdentity = `${this.options.workspaceRoot}\u0000${workItemId}`;
+    const activeDossier = activeOperationLocks.getStore()?.get(lockIdentity);
+    if (activeDossier !== undefined) {
+      if (activeDossier !== dossierDirectory) {
+        throw this.options.recoveryError();
+      }
+      return operation();
+    }
     const release = await this.acquireLock(workItemId);
     try {
       await this.assertRealDirectoryChain(this.options.workspaceRoot, dossierDirectory);
       await this.recoverAbandonedTransaction(workItemId, dossierDirectory);
-      return await operation();
+      const inherited = activeOperationLocks.getStore();
+      const active = new Map(inherited ?? []);
+      active.set(lockIdentity, dossierDirectory);
+      return await activeOperationLocks.run(active, operation);
     } finally {
       await release();
     }
@@ -341,7 +355,7 @@ export class WorkItemOperationCoordinator {
     }
     let ownedLock = await this.createLockFile(lockPath);
     if (ownedLock === undefined) {
-      const recoveryClaim = await this.claimAbandonedLock(workItemId, lockPath, recoveryClaimPath);
+      const recoveryClaim = await this.claimAbandonedLock(lockPath, recoveryClaimPath);
       if (recoveryClaim === undefined) {
         throw this.options.conflictError();
       }
@@ -424,19 +438,15 @@ export class WorkItemOperationCoordinator {
 
   /**
    * A lock is recoverable only when it was created by this coordinator, its
-   * recorded process is no longer alive, and the matching transaction journal
-   * still exists. Empty or malformed historical lock markers remain retained.
+   * recorded process is no longer alive, and its physical identity remains
+   * unchanged while it is claimed. A journal is not required because a
+   * process can exit while holding the gate before starting a transaction.
+   * Empty or malformed historical lock markers remain retained.
    */
   private async claimAbandonedLock(
-    workItemId: string,
     lockPath: string,
     recoveryClaimPath: string,
   ): Promise<OwnedFile | undefined> {
-    const transactionDirectory = this.transactionDirectory(workItemId);
-    if (!(await this.safeLockPathExists(transactionDirectory))) {
-      return undefined;
-    }
-
     let expectedLock: OwnedFile;
     try {
       expectedLock = await this.readOwnedRegularFile(lockPath);
@@ -492,7 +502,7 @@ export class WorkItemOperationCoordinator {
         return false;
       }
       if (
-        claim.purpose !== 'RELEASE' &&
+        claim.purpose === undefined &&
         !(await this.safeLockPathExists(this.transactionDirectory(workItemId)))
       ) {
         return false;

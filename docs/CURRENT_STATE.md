@@ -170,7 +170,40 @@ no implementation or contract defects; retry idempotency, human-payload
 preservation, the rendering marker, historical compatibility, and M1–M4
 regression were validated. The observations were non-blocking.
 
-`Milestone 4.1: COMPLETED — FROZEN`. Milestone 5 is `READY TO START`.
+`Milestone 4.1: COMPLETED — FROZEN`.
+
+## Milestone 5: IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION
+
+**Hecho verificado:** la implementación de producción M5 está presente y
+preserva las quince herramientas históricas M1–M4.1. Añade creación v2,
+workflow y participantes declarados, sesiones con snapshots técnicos,
+consolidación, relaciones, conceptos, revisión y ciclo de vida lógico. La única
+fuente estructurada M5 es
+`.ws-workspace/records/KNOWLEDGE_BASE.json`; no se han introducido ledgers M5
+por sesión, workflow o Work Item.
+
+La atomicidad M5 abarca `KNOWLEDGE_BASE.json` y las proyecciones del commit M5.
+El bridge desde una mutación M3/M4 usa dos commits físicos secuenciales y
+converge por reevaluación del estado y por un fence causal de revisiones M3/M4
+capturado en cada cierre, no por timestamps ni por una transacción
+cross-repository. El `Knowledge revision` proyectado es un watermark global por
+dossier y sólo avanza cuando ese dossier participa en el commit.
+
+**Decisión aprobada:** el contrato técnico completo está en
+[MILESTONE_5_DESIGN.md](MILESTONE_5_DESIGN.md). ADR-018, ADR-019, ADR-020 y ADR-021
+registran la base única M5 separada del ledger M4, la segunda raíz de proyecto
+de solo lectura, el layout dual, el estado canónico con proyección legacy, la
+identidad declarada, la ausencia de archivado físico y el fence causal del
+bridge histórico.
+
+**Estado de validación:** M5 está
+`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. La matriz reproducible y el
+plan manual están en
+[Pruebas_Milestone_5.md](Pruebas_Milestone_5.md). Los resultados automáticos
+finales están registrados en `PASS`: formato, typecheck, lint, 37 archivos con
+276 pruebas, build, check integrado, smoke compilado con 38 herramientas y diff
+check. La validación manual IBM Bob permanece pendiente. M5 no está completado
+ni congelado.
 
 ## Authoritative milestone state
 
@@ -181,16 +214,20 @@ regression were validated. The observations were non-blocking.
 - `Milestone 4.1A: DESIGN APPROVED — FROZEN`
 - `Milestone 4.1B: IMPLEMENTED — AUTOMATIC VALIDATION PASS — MANUAL IBM BOB VALIDATION PASS`
 - `Milestone 4.1: COMPLETED — FROZEN`
-- `Milestone 5: READY TO START`
+- `Milestone 5 Design: TECHNICAL CONTRACT COMPLETE — NOT FROZEN`
+- `Milestone 5 Implementation: IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`
+- `Milestone 5: NOT COMPLETED — NOT FROZEN`
 
 ## Post-Milestone 3 product evolution review
 
 The current architecture remains local and file-based. Milestone 4 persists
 Work Item data in the local authorized workspace. The M4.1A design and M4.1B
-implementation are frozen as Milestone 4.1; Milestone 5 is ready to start.
+implementation are frozen as Milestone 4.1. Milestone 5 is implemented under
+its complete technical contract and awaits manual IBM Bob validation; it is
+not completed or frozen.
 
 The product direction now distinguishes a future WS Workspace Core, future
-Technology Profiles, and future Project Profiles. M1–M4 are the completed and
+Technology Profiles, and future Project Profiles. M1–M4.1 are the completed and
 validated local, documentary, and architectural base for that evolution; they
 are not claimed to be a fully neutral Core. Current frozen contracts retain
 `SalesforceContext`, `developmentAlias`, and `rallyId` for the initial
@@ -198,8 +235,9 @@ Salesforce/Rally use case.
 
 A future Project Profile will represent stable, transversal project knowledge;
 a Work Item Dossier remains the generated, updated, and audited record of one
-Work Item. Profiles, shared persistence, synchronization, corporate folders,
-internal servers, a Central Knowledge Service, APIs, databases, multi-tenancy,
-SaaS, cloud deployment, and enterprise authentication are not selected. This
-review does not change M1–M3, expand the implemented Milestone 4 contract,
-start or define Milestone 5, or alter the local MVP.
+Work Item. M5 selects only a narrow local knowledge-base contract, relations
+and concept catalogue; it does not implement a complete Project Profile.
+Shared persistence, synchronization, corporate folders, internal servers, a
+Central Knowledge Service, APIs, databases, multi-tenancy, SaaS, cloud
+deployment, and enterprise authentication remain unselected. M5 preserves the
+implemented M1–M4.1 contracts through an additive implementation.

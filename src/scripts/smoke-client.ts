@@ -1,6 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -91,6 +92,12 @@ function hasAbsolutePath(value: unknown, workspaceRoot: string): boolean {
 
 async function run(): Promise<void> {
   const workspaceRoot = await mkdtemp(resolve(tmpdir(), 'ws-workspace-mcp-smoke-'));
+  const projectSourceRoot = await mkdtemp(resolve(tmpdir(), 'ws-workspace-mcp-source-'));
+  await writeFile(
+    join(projectSourceRoot, 'smoke-source.ts'),
+    'export const smoke = true;\n',
+    'utf8',
+  );
 
   const client = new Client({
     name: 'ws-workspace-mcp-smoke-client',
@@ -101,6 +108,7 @@ async function run(): Promise<void> {
     args: [resolve(process.cwd(), 'dist/index.js')],
     env: {
       WS_WORKSPACE_ROOT: workspaceRoot,
+      WS_PROJECT_SOURCE_ROOT: projectSourceRoot,
     },
   });
 
@@ -445,6 +453,61 @@ async function run(): Promise<void> {
         conflictError.code === 'AUDIT_IDEMPOTENCY_CONFLICT',
       'The smoke test did not observe the expected idempotency conflict.',
     );
+    const m5Actor = { participantId: 'smoke:developer', displayName: 'Smoke Developer' };
+    const workflowInitialization = await client.callTool({
+      name: 'initialize_work_item_workflow',
+      arguments: {
+        workItemId,
+        iteration: {
+          iterationId: 'Smoke Iteration',
+          displayName: 'Iteración de smoke',
+          storageToken: 'Smoke_Iteration',
+        },
+        responsible: m5Actor,
+        classification: 'STANDARD',
+        actor: m5Actor,
+        expectedKnowledgeRevision: 0,
+        idempotencyKey: randomUUID(),
+      },
+    });
+    requireToolSuccess(workflowInitialization, 'initialize_work_item_workflow');
+    const activatedSession = await client.callTool({
+      name: 'activate_work_session',
+      arguments: {
+        workItemId,
+        actor: m5Actor,
+        expectedKnowledgeRevision: 1,
+        idempotencyKey: randomUUID(),
+      },
+    });
+    requireToolSuccess(activatedSession, 'activate_work_session');
+    const secondWorkItem = await client.callTool({
+      name: 'create_work_item_v2',
+      arguments: {
+        type: 'TECHNICAL_TASK',
+        rallyId: 'SMOKE-2',
+        title: 'M5 smoke context',
+        functionalDefinition: 'Validate an atomic M5 context switch.',
+        iteration: { iterationId: 'Smoke Iteration', displayName: 'Iteración de smoke' },
+        actor: m5Actor,
+        expectedKnowledgeRevision: 2,
+        idempotencyKey: randomUUID(),
+      },
+    });
+    requireToolSuccess(secondWorkItem, 'create_work_item_v2');
+    const switchedSession = await client.callTool({
+      name: 'switch_work_session',
+      arguments: {
+        targetWorkItemId: 'SMOKE-2',
+        observedWork: ['smoke-source.ts observed'],
+        relevantContext: ['M5 production smoke'],
+        pendingQuestions: [],
+        actor: m5Actor,
+        expectedKnowledgeRevision: 3,
+        idempotencyKey: randomUUID(),
+      },
+    });
+    requireToolSuccess(switchedSession, 'switch_work_session');
     const requiredTools = [
       'health_check',
       'get_server_capabilities',
@@ -461,11 +524,34 @@ async function run(): Promise<void> {
       'record_test_execution',
       'register_evidence_reference',
       'get_work_item_tracking',
+      'create_work_item_v2',
+      'initialize_work_item_workflow',
+      'get_work_item_workflow',
+      'activate_work_session',
+      'switch_work_session',
+      'record_session_checkpoint',
+      'suspend_work_session',
+      'get_active_work_session',
+      'resume_work_session_context',
+      'add_work_item_collaborator',
+      'remove_work_item_collaborator',
+      'transfer_work_item_responsibility',
+      'add_work_item_relation',
+      'remove_work_item_relation',
+      'propose_project_concept',
+      'resolve_project_concept_proposal',
+      'consolidate_work_item_dossier',
+      'review_work_item',
+      'resolve_semantic_observation',
+      'complete_work_item',
+      'cancel_work_item',
+      'reopen_work_item',
+      'get_related_knowledge',
     ];
     const discoveredTools = tools.tools.map((tool) => tool.name);
     requireCondition(
       [...requiredTools].sort().join('\n') === [...discoveredTools].sort().join('\n'),
-      'The discovered MCP tools did not exactly match the approved 15-tool surface.',
+      'The discovered MCP tools did not exactly match the additive M5 tool surface.',
     );
     const capabilitiesPayload = parsedResult(capabilities);
     const availableTools = capabilitiesPayload.availableTools;
@@ -481,7 +567,7 @@ async function run(): Promise<void> {
       : [];
     requireCondition(
       [...requiredTools].sort().join('\n') === [...availableToolNames].sort().join('\n'),
-      'Capability discovery did not exactly match the approved 15-tool surface.',
+      'Capability discovery did not exactly match the additive M5 tool surface.',
     );
     const notImplemented = capabilitiesPayload.notImplemented;
     requireCondition(
@@ -521,9 +607,13 @@ async function run(): Promise<void> {
       manifest,
       idempotentRetry,
       idempotencyConflict,
+      workflowInitialization,
+      activatedSession,
+      secondWorkItem,
+      switchedSession,
     };
     requireCondition(
-      !hasAbsolutePath(output, workspaceRoot),
+      !hasAbsolutePath(output, workspaceRoot) && !hasAbsolutePath(output, projectSourceRoot),
       'A smoke result exposed an absolute path.',
     );
 
@@ -531,6 +621,7 @@ async function run(): Promise<void> {
   } finally {
     await client.close().catch(() => undefined);
     await rm(workspaceRoot, { recursive: true, force: true });
+    await rm(projectSourceRoot, { recursive: true, force: true });
   }
 }
 
