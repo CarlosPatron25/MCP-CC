@@ -172,7 +172,7 @@ regression were validated. The observations were non-blocking.
 
 `Milestone 4.1: COMPLETED — FROZEN`.
 
-## Milestone 5: IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION
+## Milestone 5: IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION
 
 **Hecho verificado:** la implementación de producción M5 está presente y
 preserva las quince herramientas históricas M1–M4.1. Añade creación v2,
@@ -190,20 +190,33 @@ cross-repository. El `Knowledge revision` proyectado es un watermark global por
 dossier y sólo avanza cuando ese dossier participa en el commit.
 
 **Decisión aprobada:** el contrato técnico completo está en
-[MILESTONE_5_DESIGN.md](MILESTONE_5_DESIGN.md). ADR-018, ADR-019, ADR-020 y ADR-021
+[MILESTONE_5_DESIGN.md](MILESTONE_5_DESIGN.md). ADR-018, ADR-019, ADR-020, ADR-021
+y ADR-022
 registran la base única M5 separada del ledger M4, la segunda raíz de proyecto
 de solo lectura, el layout dual, el estado canónico con proyección legacy, la
-identidad declarada, la ausencia de archivado físico y el fence causal del
-bridge histórico.
+identidad declarada, la ausencia de archivado físico, el fence causal del
+bridge histórico y la reconciliación correlacionada del lock protocol.
 
 **Estado de validación:** M5 está
-`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. La matriz reproducible y el
+`IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION`. La matriz reproducible y el
 plan manual están en
 [Pruebas_Milestone_5.md](Pruebas_Milestone_5.md). Los resultados automáticos
-finales están registrados en `PASS`: formato, typecheck, lint, 37 archivos con
-276 pruebas, build, check integrado, smoke compilado con 38 herramientas y diff
-check. La validación manual IBM Bob permanece pendiente. M5 no está completado
-ni congelado.
+finales de la corrección ADR-022 están registrados en `PASS`: formato,
+typecheck, lint, 38 archivos con 294 pruebas, build, check integrado, smoke
+compilado con 38 herramientas y diff check. La revalidación manual IBM Bob
+permanece pendiente. M5 no está completado ni congelado.
+
+**Corrección operativa ADR-022:** el lock protocol `2.0.0` correlaciona
+instancia MCP, operación, token, propósito y propietario del lock. El
+coordinador mantiene un registro en memoria de propietarios activos, clasifica
+lock, claim y transacción antes de responder conflicto y sólo completa un
+`RELEASE` residual cuando la identidad correlacionada y la ausencia de
+transacción pendiente lo permiten. Los errores al retirar lock o claim se
+propagan; si coinciden con un error funcional, éste conserva el contrato
+público y el error de cleanup queda encadenado. Los formatos desconocidos,
+claims parciales, tokens divergentes y propietarios remotos no demostrados
+inactivos se preservan con fallo cerrado. No se usa antigüedad como criterio de
+limpieza.
 
 ## Authoritative milestone state
 
@@ -215,7 +228,7 @@ ni congelado.
 - `Milestone 4.1B: IMPLEMENTED — AUTOMATIC VALIDATION PASS — MANUAL IBM BOB VALIDATION PASS`
 - `Milestone 4.1: COMPLETED — FROZEN`
 - `Milestone 5 Design: TECHNICAL CONTRACT COMPLETE — NOT FROZEN`
-- `Milestone 5 Implementation: IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`
+- `Milestone 5 Implementation: IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION`
 - `Milestone 5: NOT COMPLETED — NOT FROZEN`
 
 ## Post-Milestone 3 product evolution review
@@ -223,8 +236,8 @@ ni congelado.
 The current architecture remains local and file-based. Milestone 4 persists
 Work Item data in the local authorized workspace. The M4.1A design and M4.1B
 implementation are frozen as Milestone 4.1. Milestone 5 is implemented under
-its complete technical contract and awaits manual IBM Bob validation; it is
-not completed or frozen.
+its complete technical contract and awaits manual IBM Bob revalidation after
+ADR-022; it is not completed or frozen.
 
 The product direction now distinguishes a future WS Workspace Core, future
 Technology Profiles, and future Project Profiles. M1–M4.1 are the completed and

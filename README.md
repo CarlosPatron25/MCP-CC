@@ -39,12 +39,12 @@ approved and frozen documentation/localisation design; M4.1B has completed
 automatic and manual IBM Bob validation. Milestone 4.1 is closed and frozen.
 
 Milestone 5 está
-`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. Su contrato técnico
+`IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION`. Su contrato técnico
 definitivo está documentado en
 [MILESTONE_5_DESIGN.md](docs/MILESTONE_5_DESIGN.md), y la batería de validación
 está definida en
 [Pruebas_Milestone_5.md](docs/Pruebas_Milestone_5.md). Este estado no equivale
-a validación manual, cierre ni congelación de M5.
+a revalidación manual, cierre ni congelación de M5.
 
 La implementación M5 construye y mantiene una base de conocimiento viva del
 proyecto sobre una única fuente estructurada
@@ -87,15 +87,17 @@ recovery y perfiles de rendering.
 explícita y de solo lectura; layout dual; estados canónicos
 `IN_PROGRESS`, `COMPLETED` y `CANCELLED` con proyección legacy; identidad
 `DECLARED`; cierre lógico sin archivado físico; y fence causal para el bridge
-M3/M4. Véanse ADR-018, ADR-019, ADR-020 y ADR-021.
+M3/M4. Véanse ADR-018, ADR-019, ADR-020, ADR-021 y ADR-022.
 
 **Implementación:** M5 está
-`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. La validación automática
-final está en `PASS` con 37 archivos y 276 pruebas, además del smoke del binario
-compilado con 38 herramientas MCP. La evidencia y la prueba manual pendiente se
-registran en [Pruebas_Milestone_5.md](docs/Pruebas_Milestone_5.md). M5 no puede
-declararse completado sin validación manual IBM Bob y cierre documental
-aprobado.
+`IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION`. La corrección ADR-022
+añade identidad correlacionada de instancia, operación y token, clasificación
+conjunta de lock/claim/transacción y propagación determinista de fallos de
+liberación. La validación automática pasa con 38 archivos y 294 pruebas y el
+smoke compilado conserva 38 herramientas MCP. La evidencia y la revalidación
+manual pendiente se registran en
+[Pruebas_Milestone_5.md](docs/Pruebas_Milestone_5.md). M5 no puede declararse
+completado sin revalidación manual IBM Bob y cierre documental aprobado.
 
 ## Requirements
 
@@ -192,6 +194,13 @@ The local repository owns containment, exclusive per-Work-Item locks, staging,
 revision enforcement, and recovery of ordinary failed commits. A concurrent
 or retained lock returns `DOCUMENT_LIFECYCLE_CONFLICT`; a stale revision returns
 `DOCUMENT_REVISION_CONFLICT`. Responses contain only safe relative paths.
+
+ADR-022 applies one lock protocol to M3–M5. New markers use schema `2.0.0` and
+correlate process instance, operation and acquisition token. Before returning a
+lock conflict, the coordinator classifies lock, claim and scoped transaction;
+it completes only a physically revalidated, correlated `RELEASE` with no
+pending transaction and no active local owner. Malformed, divergent or unknown
+states are retained, and release cleanup failures are returned to the caller.
 
 ## Milestone 3 automated validation
 

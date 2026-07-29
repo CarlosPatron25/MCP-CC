@@ -34,6 +34,7 @@ All decisions below are approved. Status is Accepted unless later superseded.
 | 26  | M5 adds a read-only source root, dual layout and logical lifecycle compatibility. | ADR-019 |
 | 27  | M5 identities are stable but declared, and host UX remains outside the domain.    | ADR-020 |
 | 28  | M5 completion records a causal M3/M4 revision fence for historical auto-reopen.   | ADR-021 |
+| 29  | Lock recovery uses correlated ownership and deterministic release failures.       | ADR-022 |
 
 ## ADR-001: Work-item types
 
@@ -519,3 +520,65 @@ Implementation status: Decisión aprobada, documentada e implementada. M5 está
 congelado.
 
 Status: Accepted for Milestone 5.
+
+## ADR-022: Propiedad correlacionada y reconciliación conservadora de locks
+
+Context: El protocolo histórico de exclusión escribía un PID en el lifecycle
+lock y otro token independiente en el recovery claim. La liberación podía
+retirar el lock, fallar al retirar un claim `RELEASE` y ocultar ese fallo. La
+siguiente operación interpretaba el PID todavía existente como propietario
+activo antes de intentar recovery, aunque ya no hubiese operación ni journal.
+El resultado era un conflicto persistente que un retry exacto no podía
+resolver. Un PID aislado tampoco distingue una instancia actual, una instancia
+anterior ni la reutilización del PID por el sistema operativo.
+
+Decision: Los nuevos lifecycle locks usan el schema de protocolo `2.0.0` y
+registran `pid`, `instanceId` aleatorio por proceso MCP, `operationId`, token de
+adquisición y timestamp. Los claims `RELEASE` y `RECOVERY` registran su
+propietario y una copia exacta de la identidad del lock al que se refieren. Un
+registro en memoria conserva las operaciones y reclamaciones activas de la
+instancia actual; el PID queda como una señal adicional y nunca como prueba
+única de propiedad.
+
+Antes de devolver conflicto, el coordinador clasifica conjuntamente lock,
+claim y transacción como libre, propietario activo, propietario abandonado,
+liberación pendiente, recovery activo/abandonado/desconocido, staging o journal
+pendiente, malformado o divergente. Sólo reconcilia automáticamente:
+
+- un `RELEASE` `2.0.0` cuya referencia coincide exactamente con el lock, sin
+  transacción scoped pendiente y sin propietario activo registrado;
+- un claim-only `RELEASE` correlacionado dejado después de retirar el lock;
+- un `RECOVERY` cuyo reclamante es demostrablemente inactivo; y
+- un lock válido cuyo propietario es demostrablemente inactivo, mediante un
+  claim exclusivo y revalidación física.
+
+Cada retirada relee contenido e identidad física, captura el fichero mediante
+rename dentro de `.locks` y vuelve a verificarlo antes de borrarlo. Formatos
+parciales, links, tokens divergentes, propietarios remotos vivos o desconocidos
+y staging no reconocido fallan cerrados y se conservan. No existe limpieza por
+edad. Los locks y claims `1.0.0` siguen siendo legibles: un PID muerto permite
+el recovery histórico; un PID vivo sin identidad de instancia permanece
+conservadoramente bloqueado.
+
+La liberación intenta retirar lock y claim y propaga cualquier resultado no
+confirmado. Si la operación funcional ya falló, su `WorkspaceError` conserva
+precedencia contractual y el fallo de cleanup queda adjunto como `cause` y
+`cleanupError`; si no hubo fallo funcional, el fallo de liberación se devuelve
+como error de actualización. De este modo no se cambian los códigos MCP
+aprobados y ningún fallo de cleanup queda silenciado.
+
+Consequences: Un retry puede cerrar de forma idempotente la ventana exacta
+entre crear el claim, retirar el lock y retirar el claim, incluso tras iniciar
+otra instancia y aunque el PID se haya reutilizado. Una operación legítima
+simultánea sigue recibiendo conflicto. La reconciliación ocurre al adquirir el
+gate, antes del conflicto, y reutiliza el mismo clasificador que protege el
+recovery transaccional; no añade rutas escribibles ni modifica journals,
+ledgers, idempotencia `PENDING` ni contratos M3–M5.
+
+Implementation status: Decisión aprobada, documentada e implementada con
+pruebas de fallos en cada fase, correlación, PID reutilizado, concurrencia,
+journals y staging. M5 permanece
+`IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION`; no está completado ni
+congelado.
+
+Status: Accepted as a corrective operational decision for Milestones 3–5.

@@ -159,6 +159,14 @@ directory chains, regular files, approved relative paths, hashes, journal
 identity, and owned locks before destructive recovery. Retain unknown or
 unowned material and fail closed.
 
+Do not create lifecycle or recovery markers outside the ADR-022 protocol.
+Schema `2.0.0` requires a process `instanceId`, operation ID, acquisition token
+and an exact lock reference in each claim. Reconciliation must run through the
+shared lock/claim/transaction classifier, revalidate physical identity and
+remain independent of artifact age. Never suppress an unconfirmed release; if
+the functional operation also failed, preserve its `WorkspaceError` and attach
+the cleanup failure.
+
 The M4 manifest block is composed losslessly before the M3 lifecycle block.
 Projections are deterministic and protected. M4 mutations never refresh
 `AI_CONTEXT`; only the explicit M3 refresh can request the bounded M4 summary.
@@ -196,9 +204,9 @@ fifteen-tool MCP schemas. See `Pruebas_Milestone_4_1.md` for reproducible
 automatic results. Automatic and manual IBM Bob validation have passed.
 Milestone 4.1 is `COMPLETED — FROZEN`.
 
-## Convenciones de desarrollo de Milestone 5 (implementado; validación manual pendiente)
+## Convenciones de desarrollo de Milestone 5 (implementado; revalidación manual pendiente)
 
-M5 está `IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`; las reglas siguientes
+M5 está `IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION`; las reglas siguientes
 continúan siendo obligatorias para mantenimiento y correcciones. Este estado no
 declara M5 completado ni congelado.
 
@@ -261,8 +269,8 @@ npm.cmd run smoke
 ```
 
 El estado vigente es
-`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. No se marcará M5 como
-completado sin validación manual separada y cierre aprobado. La evidencia se
+`IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION`. No se marcará M5 como
+completado sin revalidación manual separada y cierre aprobado. La evidencia se
 registrará en `Pruebas_Milestone_5.md`.
 
 ## Adding a document or template

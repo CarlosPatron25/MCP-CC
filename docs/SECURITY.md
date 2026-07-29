@@ -79,9 +79,15 @@ updates. A stale or incompatible request writes nothing. Projections are
 deterministic and protected; inconsistent ledger, index, projection, or
 manifest state fails closed.
 
-M3 and M4 share one per-Work-Item exclusion boundary. Lock and recovery-claim
-files carry process and ownership tokens; release compares physical file
-identity as well as content and never deletes an unowned replacement. The
+M3–M5 share the coordinated exclusion boundary. Protocol `2.0.0` lock and
+recovery-claim files correlate process instance, operation, acquisition token,
+purpose and referenced lock; the current process also registers active owners
+in memory. PID alone is never sufficient to prove ownership or abandonment.
+Release compares physical file identity as well as content and never deletes
+an unowned replacement. A correlated `RELEASE` is completed before returning a
+conflict only when no scoped transaction is pending and no current-instance
+owner remains registered. Malformed, divergent, legacy-live or remotely
+unknown ownership is retained, and no cleanup decision is based on age. The
 multi-file journal is immutable, progress records are append-only, and a commit
 marker is written atomically. Rollback and abandoned-transaction recovery
 validate approved relative paths, UUID transaction identity, hashes, regular
@@ -99,9 +105,11 @@ separate process with the same operating-system permissions can still attempt a
 check/use race against local files; Node.js does not expose portable `openat`
 and `renameat` primitives for an entirely descriptor-relative transaction.
 Dedicated directory permissions remain required. The implementation repeatedly
-validates physical identities and retains a live claim during lock release to
-detect tampering and fail closed, but it does not claim protection from a fully
-privileged hostile local process.
+validates physical identities and retains a correlated claim during lock
+release to detect tampering and fail closed. Any unconfirmed lock or claim
+retirement is propagated to the caller; a simultaneous functional error keeps
+its public code and carries the cleanup error as its cause. The protocol does
+not claim protection from a fully privileged hostile local process.
 
 ## Milestone 4.1 configuration security (completed and frozen)
 

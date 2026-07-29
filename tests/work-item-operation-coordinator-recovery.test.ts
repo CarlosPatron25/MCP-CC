@@ -243,7 +243,7 @@ describe('WorkItemOperationCoordinator recovery regressions', () => {
     await writeFile(lockPath, 'retained replacement lock\n', 'utf8');
     releaseResolve?.();
 
-    await expect(operation).resolves.toBe('finished');
+    await expect(operation).rejects.toBeInstanceOf(AuditTrackingUpdateError);
     await expect(readFile(lockPath, 'utf8')).resolves.toBe('retained replacement lock\n');
   });
 
@@ -272,7 +272,7 @@ describe('WorkItemOperationCoordinator recovery regressions', () => {
     await writeFile(lockPath, copiedContent, 'utf8');
     releaseResolve?.();
 
-    await expect(operation).resolves.toBe('finished');
+    await expect(operation).rejects.toBeInstanceOf(AuditTrackingUpdateError);
     await expect(readFile(lockPath, 'utf8')).resolves.toBe(copiedContent);
   });
 
@@ -304,7 +304,7 @@ describe('WorkItemOperationCoordinator recovery regressions', () => {
     await symlink(outsideDirectory, lockPath, process.platform === 'win32' ? 'junction' : 'dir');
     releaseResolve?.();
 
-    await expect(operation).resolves.toBe('finished');
+    await expect(operation).rejects.toBeInstanceOf(AuditTrackingUpdateError);
     expect((await lstat(lockPath)).isSymbolicLink()).toBe(true);
     await expect(readFile(sentinel, 'utf8')).resolves.toBe('unchanged\n');
   });

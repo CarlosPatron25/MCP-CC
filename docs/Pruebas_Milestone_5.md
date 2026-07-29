@@ -2,15 +2,18 @@
 
 ## Estado
 
-**Implementación:** `IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`  
-**Validación automática final:** `PASS — 2026-07-28`  
-**Validación manual IBM Bob:** `PENDIENTE`  
+**Implementación:** `IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION`
+
+**Validación automática de la corrección ADR-022:** `PASS — 2026-07-29`
+
+**Revalidación manual IBM Bob:** `PENDIENTE`
+
 **Cierre de Milestone 5:** `NO COMPLETADO — NO CONGELADO`
 
 Este documento registra la batería reproducible y el guion manual de
-Milestone 5. La validación automática se ejecutó sobre el árbol de trabajo
-descrito en la sección 2. La validación IBM Bob continúa pendiente y, por
-tanto, M5 no está completado ni congelado.
+Milestone 5 y la corrección operativa ADR-022. La validación automática final
+de la corrección se registra sobre el árbol de trabajo descrito en la sección 2. La revalidación IBM Bob continúa pendiente y, por tanto, M5 no está
+completado ni congelado.
 
 ## 1. Contrato de evidencia
 
@@ -75,6 +78,33 @@ incorporó procedencia autocontenida y coincidencia léxica exacta; y la
 reapertura histórica sustituyó timestamps por el fence causal ADR-021. No
 quedan incidencias automáticas abiertas.
 
+### Registro de ejecución correctiva ADR-022
+
+Ejecución finalizada: `2026-07-29T18:59:42+02:00` (`Europe/Madrid`). Base Git:
+`1ac42ce`; árbol de trabajo sin commit con nueve archivos versionados
+modificados y un test nuevo. Entorno: Node.js `v24.18.0`, npm `11.16.0`. No se
+publican roots temporales, PIDs, tokens ni contenido corporativo.
+
+| Comprobación    | Resultado | Evidencia                                                    |
+| --------------- | --------- | ------------------------------------------------------------ |
+| format          | `PASS`    | Prettier: todos los archivos conformes; código de salida 0   |
+| typecheck       | `PASS`    | `tsc --noEmit`; código de salida 0                           |
+| lint            | `PASS`    | ESLint sin errores ni avisos; código de salida 0             |
+| test            | `PASS`    | Vitest: 38 archivos y 294 casos; código de salida 0          |
+| build           | `PASS`    | `tsc -p tsconfig.build.json`; código de salida 0             |
+| smoke           | `PASS`    | Binario compilado; 38 tools descubiertas; código de salida 0 |
+| check integrado | `PASS`    | format, typecheck, lint, test y build; salida final 0        |
+| diff check      | `PASS`    | `git diff --check`; código de salida 0                       |
+
+La cobertura correctiva reproduce el origen, no sólo el estado final: crea el
+claim `RELEASE`, falla antes o después de retirar el lock, falla antes de
+retirar el claim, simula otra instancia y exige que el siguiente intento deje
+de quedar bloqueado. También cubre error funcional más error de cleanup,
+misma/otra instancia, PID reutilizado, `RECOVERY`, tokens divergentes, formatos
+parciales, journal sin lock, staging seguro/desconocido y propietario legítimo
+simultáneo. La suite completa preserva M1–M5, incluido el bootstrap `PENDING` y
+su retry exacto.
+
 ## 3. Matriz automática de escenarios
 
 La fuente estructurada esperada en todos los escenarios M5 es únicamente
@@ -134,6 +164,17 @@ por sesión, workflow, Work Item, catálogo o relación.
 | 49  | Perder el ledger con artefactos M5 persistidos    | El inventario de dossiers impide tratar la base existente como nueva               | repositorio M5                                       | `PASS`    |
 | 50  | Reintentar un cursor anterior tras otro cierre    | La frontera más reciente lo convierte en no-op aunque el timestamp coincida        | aplicación M5                                        | `PASS`    |
 | 51  | Comparar concepto exacto y prefijo léxico         | Sólo frase/token exacto produce `CONFIRMED_TEXT_OCCURRENCE` y conserva su traza    | aplicación/MCP M5                                    | `PASS`    |
+| 52  | Fallar al crear o retirar el claim de liberación  | El caller recibe error; lock/claim residual queda visible y correlacionado         | `work-item-lock-protocol.test.ts`                    | `PASS`    |
+| 53  | Fallar al retirar lock y claim                    | Se informan ambos fallos sin ocultar el error funcional previo                     | `work-item-lock-protocol.test.ts`                    | `PASS`    |
+| 54  | Reiniciar tras la ventana exacta del incidente    | Otra instancia reconcilia `RELEASE` y el retry deja de quedar bloqueado            | `work-item-lock-protocol.test.ts`                    | `PASS`    |
+| 55  | Reutilizar PID con otra instancia                 | Sólo un `RELEASE` exactamente correlacionado puede completarse                     | `work-item-lock-protocol.test.ts`                    | `PASS`    |
+| 56  | Encontrar `RECOVERY` vivo o lock remoto vivo      | Se devuelve conflicto y se preservan los artefactos                                | `work-item-lock-protocol.test.ts`                    | `PASS`    |
+| 57  | Encontrar formato parcial o tokens divergentes    | No se borra nada y el estado falla cerrado                                         | `work-item-lock-protocol.test.ts`                    | `PASS`    |
+| 58  | Journal válido sin lock                           | Se adquiere el gate y recovery restaura el estado confirmado                       | `work-item-lock-protocol.test.ts`                    | `PASS`    |
+| 59  | Staging sin journal seguro o desconocido          | El seguro se retira; el desconocido se conserva con error de recovery              | `work-item-lock-protocol.test.ts`                    | `PASS`    |
+| 60  | Ejecutar dos propietarios legítimos simultáneos   | El segundo recibe conflicto mientras el primero permanece registrado               | `work-item-lock-protocol.test.ts`                    | `PASS`    |
+| 61  | Observar `RELEASE` del propietario local activo   | No se reconcilia mientras la operación exacta siga registrada                      | `work-item-lock-protocol.test.ts`                    | `PASS`    |
+| 62  | Combinar lock y `RELEASE` con journal válido      | Se preservan los tres artefactos y se devuelve conflicto                           | `work-item-lock-protocol.test.ts`                    | `PASS`    |
 
 ## 4. Plan de validación manual IBM Bob
 
@@ -383,15 +424,54 @@ sigue consistente aunque haya avanzado la revisión global.
 - confirmación explícita de que no hubo escrituras bajo la raíz de proyecto; y
 - confirmación de limpieza de las raíces temporales.
 
+### 4.7 Revalidación correctiva ADR-022
+
+La revalidación posterior a esta corrección debe usar primero roots
+desechables. Con el servidor recompilado, ejecutar una mutación M5 válida, su
+retry exacto, reiniciar IBM Bob y repetir una operación de lectura y otra
+mutación. Al quedar el servidor ocioso no deben permanecer lifecycle locks ni
+recovery claims de esas operaciones. Las respuestas deben conservar los
+códigos MCP históricos y no exponer metadata del protocolo.
+
+Los fallos de liberación, PID reutilizado, tokens divergentes, claim-only,
+journal sin lock y staging desconocido se validan mediante la suite automática;
+no deben provocarse cambiando permisos ni manipulando ficheros mientras IBM Bob
+opera sobre un workspace corporativo.
+
+Si el workspace corporativo conserva los artefactos históricos que originaron
+la incidencia, el tratamiento es una intervención operativa separada y
+explícitamente autorizada:
+
+1. detener todas las instancias IBM Bob/MCP que escriban en ese root y verificar
+   que no queda una operación en curso;
+2. limitar el inventario a los IDs afectados; no borrar ni mover `.locks`,
+   `.staging` o `records` de forma global;
+3. capturar para evidencia redactada los nombres relativos, hashes, schema,
+   purpose y correspondencia lock/claim, sin publicar paths absolutos, PID,
+   tokens ni datos corporativos;
+4. confirmar que no existe el transaction directory scoped ni journal para el
+   ID antes de intervenir sobre un `RELEASE` histórico;
+5. dado que los artefactos `1.0.0` no contienen identidad correlacionada, no
+   forzar su auto-recovery: con aprobación del responsable operativo, mover los
+   ficheros exactos a una cuarentena recuperable dentro del root autorizado y
+   conservarlos hasta cerrar la incidencia; y
+6. iniciar el build corregido, ejecutar una única operación controlada, exigir
+   ausencia de residuo `2.0.0` al finalizar y después completar B1–B19.
+
+Un formato parcial, un link, un journal/staging presente, tokens no
+correlacionados o duda sobre un propietario activo detienen la intervención.
+No se limpia por antigüedad y no se reutiliza este procedimiento para otros
+IDs sin una autorización nueva.
+
 ## 5. Regla de cierre
 
 Mientras exista cualquier resultado `PENDIENTE` o `FAIL`, el estado permanece:
 
 ```text
-IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION
+IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION
 ```
 
 Un `PASS` automático no autoriza por sí solo `COMPLETED — FROZEN`. Ese cierre
-requiere que B1–B19 tengan evidencia manual satisfactoria, que las incidencias
-bloqueantes estén resueltas y que exista una decisión documental separada de
-cierre. Este documento no adopta esa decisión.
+requiere que B1–B19 y la sección 4.7 tengan evidencia manual satisfactoria, que
+las incidencias bloqueantes estén resueltas y que exista una decisión
+documental separada de cierre. Este documento no adopta esa decisión.

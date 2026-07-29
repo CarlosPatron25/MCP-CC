@@ -229,6 +229,16 @@ physical non-link directory chains, and lock ownership before moving or
 removing data. A commit marker makes confirmation irreversible. Retained or
 unowned locks fail closed.
 
+ADR-022 upgrades newly created locks and claims to protocol schema `2.0.0`.
+Process instance, operation and acquisition token form one correlated owner;
+an in-memory registry identifies owners still active in the current instance.
+Before returning a conflict, one classifier evaluates the lifecycle lock,
+recovery claim and scoped transaction. It may finish only an exactly correlated
+`RELEASE` without a pending transaction or reclaim a demonstrably inactive
+owner. Physical identity is revalidated on every retirement. Malformed,
+divergent and remotely unknown states remain fail-closed, and cleanup failures
+are propagated without changing historical MCP error codes.
+
 Application validation preserves the required order: active Work Item, valid M3
 lifecycle, M4 initialization/integrity, then strict M4 payload, relationships,
 idempotency, and revisions. The published MCP JSON Schemas remain closed with

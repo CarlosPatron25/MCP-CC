@@ -7,8 +7,10 @@ import { WorkspaceError } from '../errors/workspace-error.js';
 import { resolvePathWithinRoot } from './safe-path.js';
 
 const JOURNAL_SCHEMA_VERSION = '1.0.0';
+const LOCK_PROTOCOL_SCHEMA_VERSION = '2.0.0';
 const HASH_PATTERN = /^[a-f0-9]{64}$/;
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PROCESS_INSTANCE_ID = randomUUID();
 const TRANSACTION_PHASES = [
   'PREPARED',
   'ORIGINALS_MOVED',
@@ -27,6 +29,9 @@ export type WorkItemTransactionFailurePoint =
 
 export type WorkItemTransactionFailureMode = 'fail' | 'abandon';
 
+export type WorkItemLockProtocolFailurePoint =
+  'before-release-claim-create' | 'before-release-lock-retire' | 'before-release-claim-retire';
+
 export interface WorkItemTransactionReplacement {
   relativePath: string;
   content: string;
@@ -44,6 +49,9 @@ export interface WorkItemOperationCoordinatorOptions {
     point: WorkItemTransactionFailurePoint,
     promotedCount: number,
   ) => WorkItemTransactionFailureMode | undefined;
+  instanceId?: string;
+  processLivenessProbe?: (pid: number) => boolean;
+  injectLockProtocolFailure?: (point: WorkItemLockProtocolFailurePoint) => boolean;
 }
 
 interface JournalReplacement {
@@ -70,11 +78,46 @@ interface PreparedReplacement extends JournalReplacement {
   backupPath: string;
 }
 
-interface RecoveryClaim {
+interface LegacyRecoveryClaim {
+  format: 'LEGACY';
   pid: number;
   token?: string;
   purpose?: 'RECOVERY' | 'RELEASE';
 }
+
+interface LockOwner {
+  pid: number;
+  instanceId: string;
+  operationId: string;
+  token: string;
+  acquiredAt: string;
+}
+
+interface CurrentLifecycleLock extends LockOwner {
+  format: 'CURRENT';
+}
+
+interface LegacyLifecycleLock {
+  format: 'LEGACY';
+  pid: number;
+  token?: string;
+  acquiredAt: string;
+}
+
+type LifecycleLock = CurrentLifecycleLock | LegacyLifecycleLock;
+
+interface CurrentRecoveryClaim {
+  format: 'CURRENT';
+  pid: number;
+  instanceId: string;
+  operationId: string;
+  token: string;
+  purpose: 'RECOVERY' | 'RELEASE';
+  acquiredAt: string;
+  lock: LockOwner;
+}
+
+type RecoveryClaim = CurrentRecoveryClaim | LegacyRecoveryClaim;
 
 interface OwnedFile {
   content: string;
@@ -83,7 +126,41 @@ interface OwnedFile {
   birthtimeMs: number;
 }
 
-const activeOperationLocks = new AsyncLocalStorage<ReadonlyMap<string, string>>();
+interface ActiveOperationLock {
+  dossierDirectory: string;
+  owner: LockOwner;
+}
+
+interface LockAcquisition {
+  owner: LockOwner;
+  release: () => Promise<void>;
+}
+
+type ProtocolArtifact<T> =
+  | { state: 'MISSING' }
+  | { state: 'MALFORMED'; file: OwnedFile }
+  | { state: 'VALID'; file: OwnedFile; value: T };
+
+type TransactionArtifact = 'MISSING' | 'JOURNAL' | 'STAGING_WITHOUT_JOURNAL' | 'MALFORMED';
+
+type LockProtocolState =
+  | { state: 'FREE'; transaction: TransactionArtifact }
+  | { state: 'LOCK_ACTIVE'; lock: OwnedFile }
+  | { state: 'LOCK_ABANDONED'; lock: OwnedFile }
+  | { state: 'LOCK_UNKNOWN'; lock: OwnedFile }
+  | { state: 'RELEASE_ACTIVE'; lock: OwnedFile; claim: OwnedFile }
+  | { state: 'RELEASE_PENDING'; lock: OwnedFile; claim: OwnedFile }
+  | { state: 'RELEASE_CLAIM_ONLY_ACTIVE'; claim: OwnedFile }
+  | { state: 'RELEASE_CLAIM_ONLY'; claim: OwnedFile }
+  | { state: 'RECOVERY_ACTIVE'; claim: OwnedFile }
+  | { state: 'RECOVERY_ABANDONED'; claim: OwnedFile }
+  | { state: 'RECOVERY_UNKNOWN'; claim: OwnedFile }
+  | { state: 'MALFORMED' }
+  | { state: 'DIVERGENT' };
+
+const activeOperationLocks = new AsyncLocalStorage<ReadonlyMap<string, ActiveOperationLock>>();
+const liveOperationOwners = new Map<string, Map<string, LockOwner>>();
+const liveRecoveryClaimants = new Map<string, LockOwner>();
 
 interface RestorationAction {
   replacement: JournalReplacement;
@@ -130,12 +207,17 @@ function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): 
 export class WorkItemOperationCoordinator {
   private readonly allowedRelativePaths: ReadonlySet<string>;
   private readonly recoveryAllowedRelativePaths: ReadonlySet<string>;
+  private readonly instanceId: string;
 
   public constructor(private readonly options: WorkItemOperationCoordinatorOptions) {
     this.allowedRelativePaths = new Set(options.allowedRelativePaths);
     this.recoveryAllowedRelativePaths = new Set(
       options.recoveryAllowedRelativePaths ?? options.allowedRelativePaths,
     );
+    this.instanceId = options.instanceId ?? PROCESS_INSTANCE_ID;
+    if (!UUID_V4_PATTERN.test(this.instanceId)) {
+      throw options.recoveryError();
+    }
   }
 
   public async runExclusive<T>(
@@ -144,24 +226,52 @@ export class WorkItemOperationCoordinator {
     operation: () => Promise<T>,
   ): Promise<T> {
     const lockIdentity = `${this.options.workspaceRoot}\u0000${workItemId}`;
-    const activeDossier = activeOperationLocks.getStore()?.get(lockIdentity);
-    if (activeDossier !== undefined) {
-      if (activeDossier !== dossierDirectory) {
+    const activeLock = activeOperationLocks.getStore()?.get(lockIdentity);
+    if (activeLock !== undefined) {
+      if (activeLock.dossierDirectory !== dossierDirectory) {
         throw this.options.recoveryError();
       }
       return operation();
     }
-    const release = await this.acquireLock(workItemId);
+
+    const acquisition = await this.acquireLock(workItemId);
+    let result: T | undefined;
+    let primaryError: unknown;
+    let operationFailed = false;
     try {
       await this.assertRealDirectoryChain(this.options.workspaceRoot, dossierDirectory);
       await this.recoverAbandonedTransaction(workItemId, dossierDirectory);
       const inherited = activeOperationLocks.getStore();
       const active = new Map(inherited ?? []);
-      active.set(lockIdentity, dossierDirectory);
-      return await activeOperationLocks.run(active, operation);
-    } finally {
-      await release();
+      active.set(lockIdentity, {
+        dossierDirectory,
+        owner: acquisition.owner,
+      });
+      result = await activeOperationLocks.run(active, operation);
+    } catch (error) {
+      operationFailed = true;
+      primaryError = error;
     }
+
+    let cleanupError: unknown;
+    try {
+      await acquisition.release();
+    } catch (error) {
+      cleanupError = error;
+    } finally {
+      this.unregisterLiveOwner(lockIdentity, acquisition.owner);
+    }
+
+    if (operationFailed) {
+      if (cleanupError !== undefined) {
+        throw this.attachCleanupFailure(primaryError, cleanupError);
+      }
+      throw primaryError;
+    }
+    if (cleanupError !== undefined) {
+      throw cleanupError;
+    }
+    return result as T;
   }
 
   public async commit(
@@ -339,67 +449,88 @@ export class WorkItemOperationCoordinator {
     await this.removeEmptyStagingParent();
   }
 
-  private async acquireLock(workItemId: string): Promise<() => Promise<void>> {
+  private async acquireLock(workItemId: string): Promise<LockAcquisition> {
     const workspaceDirectory = resolvePathWithinRoot(this.options.workspaceRoot, '.ws-workspace');
     await this.assertRealDirectoryChain(this.options.workspaceRoot, workspaceDirectory);
     const lockDirectory = resolvePathWithinRoot(workspaceDirectory, '.locks');
     await this.ensureContainedDirectory(lockDirectory);
     const lockPath = resolvePathWithinRoot(lockDirectory, `${workItemId}.lifecycle.lock`);
     const recoveryClaimPath = resolvePathWithinRoot(lockDirectory, `${workItemId}.recovery.claim`);
+    const lockIdentity = `${this.options.workspaceRoot}\u0000${workItemId}`;
+    const owner = this.newLockOwner();
+    this.registerLiveOwner(lockIdentity, owner);
 
-    if (
-      (await this.safeLockPathExists(recoveryClaimPath)) &&
-      !(await this.clearAbandonedRecoveryClaim(workItemId, recoveryClaimPath))
-    ) {
-      throw this.options.conflictError();
-    }
-    let ownedLock = await this.createLockFile(lockPath);
-    if (ownedLock === undefined) {
-      const recoveryClaim = await this.claimAbandonedLock(lockPath, recoveryClaimPath);
-      if (recoveryClaim === undefined) {
-        throw this.options.conflictError();
-      }
-      try {
-        ownedLock = await this.createLockFile(lockPath);
-        if (ownedLock === undefined) {
+    try {
+      await this.reconcileBeforeAcquisition(workItemId, lockIdentity, lockPath, recoveryClaimPath);
+      let ownedLock = await this.createLockFile(lockPath, owner);
+      if (ownedLock === undefined) {
+        const recoveryClaim = await this.claimAbandonedLock(
+          lockIdentity,
+          lockPath,
+          recoveryClaimPath,
+          owner,
+        );
+        if (recoveryClaim === undefined) {
           throw this.options.conflictError();
         }
-      } catch (error) {
-        await this.releaseRecoveryClaim(recoveryClaimPath, recoveryClaim);
-        throw error;
+        try {
+          ownedLock = await this.createLockFile(lockPath, owner);
+          if (ownedLock === undefined) {
+            throw this.options.conflictError();
+          }
+        } catch (error) {
+          await this.releaseRecoveryClaim(recoveryClaimPath, recoveryClaim).catch(() => false);
+          liveRecoveryClaimants.delete(recoveryClaimPath);
+          throw error;
+        }
+        if (!(await this.releaseRecoveryClaim(recoveryClaimPath, recoveryClaim))) {
+          await this.removeOwnedFile(lockPath, ownedLock).catch(() => false);
+          liveRecoveryClaimants.delete(recoveryClaimPath);
+          throw this.options.conflictError();
+        }
+        liveRecoveryClaimants.delete(recoveryClaimPath);
       }
-      if (!(await this.releaseRecoveryClaim(recoveryClaimPath, recoveryClaim))) {
-        await this.removeOwnedFile(lockPath, ownedLock).catch(() => false);
+
+      if (ownedLock === undefined) {
         throw this.options.conflictError();
       }
+      const expectedLock = ownedLock;
+      return {
+        owner,
+        release: async () => {
+          await this.releaseOwnedLock(lockPath, recoveryClaimPath, expectedLock, owner);
+          const safeDirectory = await this.assertRealDirectoryChain(
+            workspaceDirectory,
+            lockDirectory,
+          )
+            .then(() => true)
+            .catch(() => false);
+          if (safeDirectory) {
+            await rmdir(lockDirectory).catch(() => undefined);
+          }
+        },
+      };
+    } catch (error) {
+      this.unregisterLiveOwner(lockIdentity, owner);
+      throw error;
     }
+  }
 
-    if (ownedLock === undefined) {
-      throw this.options.conflictError();
-    }
-    const expectedLock = ownedLock;
-    return async () => {
-      const released = await this.releaseOwnedLock(lockPath, recoveryClaimPath, expectedLock).catch(
-        () => false,
-      );
-      if (released) {
-        const safeDirectory = await this.assertRealDirectoryChain(workspaceDirectory, lockDirectory)
-          .then(() => true)
-          .catch(() => false);
-        if (safeDirectory) {
-          await rmdir(lockDirectory).catch(() => undefined);
-        }
-      }
+  private newLockOwner(): LockOwner {
+    return {
+      pid: process.pid,
+      instanceId: this.instanceId,
+      operationId: randomUUID(),
+      token: randomUUID(),
+      acquiredAt: new Date().toISOString(),
     };
   }
 
-  private async createLockFile(lockPath: string): Promise<OwnedFile | undefined> {
+  private async createLockFile(lockPath: string, owner: LockOwner): Promise<OwnedFile | undefined> {
     const lockContent =
       JSON.stringify({
-        schemaVersion: JOURNAL_SCHEMA_VERSION,
-        pid: process.pid,
-        token: randomUUID(),
-        acquiredAt: new Date().toISOString(),
+        schemaVersion: LOCK_PROTOCOL_SCHEMA_VERSION,
+        ...owner,
       }) + '\n';
     let lock;
     let ownedLock: OwnedFile | undefined;
@@ -436,99 +567,159 @@ export class WorkItemOperationCoordinator {
     }
   }
 
-  /**
-   * A lock is recoverable only when it was created by this coordinator, its
-   * recorded process is no longer alive, and its physical identity remains
-   * unchanged while it is claimed. A journal is not required because a
-   * process can exit while holding the gate before starting a transaction.
-   * Empty or malformed historical lock markers remain retained.
-   */
   private async claimAbandonedLock(
+    lockIdentity: string,
     lockPath: string,
     recoveryClaimPath: string,
+    claimant: LockOwner,
   ): Promise<OwnedFile | undefined> {
     let expectedLock: OwnedFile;
+    let lock: LifecycleLock;
     try {
       expectedLock = await this.readOwnedRegularFile(lockPath);
-      if (!this.isAbandonedLockContent(expectedLock.content)) {
+      const parsed = this.parseLifecycleLock(expectedLock.content);
+      if (parsed === undefined || this.ownerActivity(lockIdentity, parsed) !== 'INACTIVE') {
         return undefined;
       }
+      lock = parsed;
     } catch {
       return undefined;
     }
 
     const recoveryClaimContent =
       JSON.stringify({
-        schemaVersion: JOURNAL_SCHEMA_VERSION,
-        pid: process.pid,
+        schemaVersion: LOCK_PROTOCOL_SCHEMA_VERSION,
+        pid: claimant.pid,
+        instanceId: claimant.instanceId,
+        operationId: claimant.operationId,
         token: randomUUID(),
         purpose: 'RECOVERY',
         acquiredAt: new Date().toISOString(),
+        lock: this.lockOwnerRecord(lock),
       }) + '\n';
     const recoveryClaim = await this.createOwnedClaim(recoveryClaimPath, recoveryClaimContent);
     if (recoveryClaim === undefined) {
       return undefined;
     }
+    liveRecoveryClaimants.set(recoveryClaimPath, claimant);
 
     try {
       const currentLock = await this.readOwnedRegularFile(lockPath);
+      const currentMetadata = this.parseLifecycleLock(currentLock.content);
       if (
         currentLock.content !== expectedLock.content ||
         !this.sameFileIdentity(expectedLock, currentLock) ||
-        !this.isAbandonedLockContent(currentLock.content)
+        currentMetadata === undefined ||
+        this.ownerActivity(lockIdentity, currentMetadata) !== 'INACTIVE'
       ) {
         await this.releaseRecoveryClaim(recoveryClaimPath, recoveryClaim);
+        liveRecoveryClaimants.delete(recoveryClaimPath);
         return undefined;
       }
       if (!(await this.removeOwnedFile(lockPath, expectedLock))) {
         await this.releaseRecoveryClaim(recoveryClaimPath, recoveryClaim);
+        liveRecoveryClaimants.delete(recoveryClaimPath);
         return undefined;
       }
       return recoveryClaim;
     } catch {
       await this.releaseRecoveryClaim(recoveryClaimPath, recoveryClaim);
+      liveRecoveryClaimants.delete(recoveryClaimPath);
       return undefined;
     }
   }
 
-  private async clearAbandonedRecoveryClaim(
+  private async reconcileBeforeAcquisition(
     workItemId: string,
+    lockIdentity: string,
+    lockPath: string,
     recoveryClaimPath: string,
-  ): Promise<boolean> {
-    try {
-      const expectedClaim = await this.readOwnedRegularFile(recoveryClaimPath);
-      const claim = this.parseRecoveryClaim(expectedClaim.content);
-      if (claim === undefined || this.isProcessAlive(claim.pid)) {
-        return false;
+  ): Promise<void> {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const state = await this.classifyLockProtocol(
+        workItemId,
+        lockIdentity,
+        lockPath,
+        recoveryClaimPath,
+      );
+      if (state.state === 'FREE' || state.state === 'LOCK_ABANDONED') {
+        return;
       }
-      if (
-        claim.purpose === undefined &&
-        !(await this.safeLockPathExists(this.transactionDirectory(workItemId)))
-      ) {
-        return false;
+      if (state.state === 'RELEASE_PENDING') {
+        if (!(await this.removeOwnedFile(lockPath, state.lock))) {
+          continue;
+        }
+        if (!(await this.releaseRecoveryClaim(recoveryClaimPath, state.claim))) {
+          continue;
+        }
+        continue;
       }
-      const confirmedClaim = await this.readOwnedRegularFile(recoveryClaimPath);
-      if (
-        confirmedClaim.content !== expectedClaim.content ||
-        !this.sameFileIdentity(expectedClaim, confirmedClaim)
-      ) {
-        return false;
+      if (state.state === 'RELEASE_CLAIM_ONLY') {
+        if (!(await this.releaseRecoveryClaim(recoveryClaimPath, state.claim))) {
+          continue;
+        }
+        continue;
       }
-      return this.removeOwnedFile(recoveryClaimPath, expectedClaim);
-    } catch {
-      return false;
+      if (state.state === 'RECOVERY_ABANDONED') {
+        if (!(await this.releaseRecoveryClaim(recoveryClaimPath, state.claim))) {
+          continue;
+        }
+        continue;
+      }
+      throw this.options.conflictError();
     }
+    throw this.options.conflictError();
   }
 
   private parseRecoveryClaim(content: string): RecoveryClaim | undefined {
     const legacyPid = content.match(/^([1-9]\d*)\r?\n?$/)?.[1];
     if (legacyPid !== undefined) {
       const pid = Number(legacyPid);
-      return Number.isSafeInteger(pid) ? { pid } : undefined;
+      return Number.isSafeInteger(pid) ? { format: 'LEGACY', pid } : undefined;
     }
 
     try {
       const parsed: unknown = JSON.parse(content);
+      if (
+        isRecord(parsed) &&
+        parsed.schemaVersion === LOCK_PROTOCOL_SCHEMA_VERSION &&
+        hasExactKeys(parsed, [
+          'schemaVersion',
+          'pid',
+          'instanceId',
+          'operationId',
+          'token',
+          'purpose',
+          'acquiredAt',
+          'lock',
+        ]) &&
+        this.isPositivePid(parsed.pid) &&
+        typeof parsed.instanceId === 'string' &&
+        UUID_V4_PATTERN.test(parsed.instanceId) &&
+        typeof parsed.operationId === 'string' &&
+        UUID_V4_PATTERN.test(parsed.operationId) &&
+        typeof parsed.token === 'string' &&
+        UUID_V4_PATTERN.test(parsed.token) &&
+        (parsed.purpose === 'RECOVERY' || parsed.purpose === 'RELEASE') &&
+        typeof parsed.acquiredAt === 'string' &&
+        parsed.acquiredAt.length > 0
+      ) {
+        const lock = this.parseLockOwnerRecord(parsed.lock);
+        if (lock === undefined) {
+          return undefined;
+        }
+        return {
+          format: 'CURRENT',
+          pid: parsed.pid,
+          instanceId: parsed.instanceId,
+          operationId: parsed.operationId,
+          token: parsed.token,
+          purpose: parsed.purpose,
+          acquiredAt: parsed.acquiredAt,
+          lock,
+        };
+      }
+
       const hasPurpose = isRecord(parsed) && 'purpose' in parsed;
       if (
         !isRecord(parsed) ||
@@ -551,6 +742,7 @@ export class WorkItemOperationCoordinator {
         return undefined;
       }
       return {
+        format: 'LEGACY',
         pid: parsed.pid,
         token: parsed.token,
         ...(hasPurpose ? { purpose: parsed.purpose as 'RECOVERY' | 'RELEASE' } : {}),
@@ -578,9 +770,40 @@ export class WorkItemOperationCoordinator {
     }
   }
 
-  private isAbandonedLockContent(content: string): boolean {
+  private parseLifecycleLock(content: string): LifecycleLock | undefined {
     try {
       const parsed: unknown = JSON.parse(content);
+      if (
+        isRecord(parsed) &&
+        hasExactKeys(parsed, [
+          'schemaVersion',
+          'pid',
+          'instanceId',
+          'operationId',
+          'token',
+          'acquiredAt',
+        ]) &&
+        parsed.schemaVersion === LOCK_PROTOCOL_SCHEMA_VERSION &&
+        this.isPositivePid(parsed.pid) &&
+        typeof parsed.instanceId === 'string' &&
+        UUID_V4_PATTERN.test(parsed.instanceId) &&
+        typeof parsed.operationId === 'string' &&
+        UUID_V4_PATTERN.test(parsed.operationId) &&
+        typeof parsed.token === 'string' &&
+        UUID_V4_PATTERN.test(parsed.token) &&
+        typeof parsed.acquiredAt === 'string' &&
+        parsed.acquiredAt.length > 0
+      ) {
+        return {
+          format: 'CURRENT',
+          pid: parsed.pid,
+          instanceId: parsed.instanceId,
+          operationId: parsed.operationId,
+          token: parsed.token,
+          acquiredAt: parsed.acquiredAt,
+        };
+      }
+
       const keys =
         isRecord(parsed) && 'token' in parsed
           ? ['schemaVersion', 'pid', 'token', 'acquiredAt']
@@ -597,28 +820,305 @@ export class WorkItemOperationCoordinator {
         typeof parsed.acquiredAt !== 'string' ||
         parsed.acquiredAt.length === 0
       ) {
-        return false;
+        return undefined;
       }
-      return !this.isProcessAlive(parsed.pid);
+      return {
+        format: 'LEGACY',
+        pid: parsed.pid,
+        ...('token' in parsed ? { token: parsed.token as string } : {}),
+        acquiredAt: parsed.acquiredAt,
+      };
     } catch {
-      return false;
+      return undefined;
     }
   }
 
+  private async classifyLockProtocol(
+    workItemId: string,
+    lockIdentity: string,
+    lockPath: string,
+    recoveryClaimPath: string,
+  ): Promise<LockProtocolState> {
+    const [lock, claim, transaction] = await Promise.all([
+      this.readProtocolArtifact(lockPath, (content) => this.parseLifecycleLock(content)),
+      this.readProtocolArtifact(recoveryClaimPath, (content) => this.parseRecoveryClaim(content)),
+      this.classifyTransaction(workItemId),
+    ]);
+    if (lock.state === 'MALFORMED' || claim.state === 'MALFORMED') {
+      return { state: 'MALFORMED' };
+    }
+    if (lock.state === 'MISSING' && claim.state === 'MISSING') {
+      return { state: 'FREE', transaction };
+    }
+    if (lock.state === 'VALID' && claim.state === 'MISSING') {
+      const activity = this.ownerActivity(lockIdentity, lock.value);
+      return {
+        state:
+          activity === 'ACTIVE'
+            ? 'LOCK_ACTIVE'
+            : activity === 'INACTIVE'
+              ? 'LOCK_ABANDONED'
+              : 'LOCK_UNKNOWN',
+        lock: lock.file,
+      };
+    }
+    if (claim.state !== 'VALID') {
+      return { state: 'DIVERGENT' };
+    }
+    if (lock.state === 'MISSING') {
+      if (claim.value.format === 'CURRENT' && claim.value.purpose === 'RELEASE') {
+        if (transaction !== 'MISSING') {
+          return { state: 'DIVERGENT' };
+        }
+        return this.ownerActivity(lockIdentity, {
+          format: 'CURRENT',
+          ...claim.value.lock,
+        }) === 'ACTIVE'
+          ? { state: 'RELEASE_CLAIM_ONLY_ACTIVE', claim: claim.file }
+          : { state: 'RELEASE_CLAIM_ONLY', claim: claim.file };
+      }
+      if (
+        claim.value.format === 'LEGACY' &&
+        claim.value.purpose === undefined &&
+        transaction === 'MISSING'
+      ) {
+        return { state: 'RECOVERY_UNKNOWN', claim: claim.file };
+      }
+      return this.classifyRecoveryClaim(recoveryClaimPath, claim.value, claim.file);
+    }
+    if (lock.state !== 'VALID') {
+      return { state: 'DIVERGENT' };
+    }
+    if (claim.value.format === 'LEGACY') {
+      if (claim.value.purpose === undefined && transaction === 'MISSING') {
+        return { state: 'RECOVERY_UNKNOWN', claim: claim.file };
+      }
+      return this.classifyRecoveryClaim(recoveryClaimPath, claim.value, claim.file);
+    }
+    if (!this.claimMatchesLock(claim.value, lock.value)) {
+      return { state: 'DIVERGENT' };
+    }
+    if (claim.value.purpose === 'RELEASE') {
+      if (transaction !== 'MISSING') {
+        return { state: 'DIVERGENT' };
+      }
+      return this.ownerActivity(lockIdentity, lock.value) === 'ACTIVE'
+        ? { state: 'RELEASE_ACTIVE', lock: lock.file, claim: claim.file }
+        : { state: 'RELEASE_PENDING', lock: lock.file, claim: claim.file };
+    }
+    return this.classifyRecoveryClaim(recoveryClaimPath, claim.value, claim.file);
+  }
+
+  private async classifyTransaction(workItemId: string): Promise<TransactionArtifact> {
+    const transactionDirectory = this.transactionDirectory(workItemId);
+    try {
+      if (!(await this.pathExists(transactionDirectory))) {
+        return 'MISSING';
+      }
+      await this.assertRealDirectoryChain(dirname(transactionDirectory), transactionDirectory);
+      const journalPath = resolvePathWithinRoot(transactionDirectory, 'journal.json');
+      if (!(await this.pathExists(journalPath))) {
+        return 'STAGING_WITHOUT_JOURNAL';
+      }
+      await this.readJournal(transactionDirectory, workItemId);
+      return 'JOURNAL';
+    } catch {
+      return 'MALFORMED';
+    }
+  }
+
+  private async readProtocolArtifact<T>(
+    path: string,
+    parse: (content: string) => T | undefined,
+  ): Promise<ProtocolArtifact<T>> {
+    try {
+      if (!(await this.pathExists(path))) {
+        return { state: 'MISSING' };
+      }
+      const file = await this.readOwnedRegularFile(path);
+      const value = parse(file.content);
+      return value === undefined ? { state: 'MALFORMED', file } : { state: 'VALID', file, value };
+    } catch {
+      return { state: 'MALFORMED', file: { content: '', device: 0, inode: 0, birthtimeMs: 0 } };
+    }
+  }
+
+  private classifyRecoveryClaim(
+    recoveryClaimPath: string,
+    claim: RecoveryClaim,
+    file: OwnedFile,
+  ): LockProtocolState {
+    const activity = this.claimantActivity(recoveryClaimPath, claim);
+    return {
+      state:
+        activity === 'ACTIVE'
+          ? 'RECOVERY_ACTIVE'
+          : activity === 'INACTIVE'
+            ? 'RECOVERY_ABANDONED'
+            : 'RECOVERY_UNKNOWN',
+      claim: file,
+    };
+  }
+
+  private ownerActivity(
+    lockIdentity: string,
+    lock: LifecycleLock,
+  ): 'ACTIVE' | 'INACTIVE' | 'UNKNOWN' {
+    if (lock.format === 'CURRENT') {
+      const registered = liveOperationOwners.get(lockIdentity);
+      if (
+        registered !== undefined &&
+        [...registered.values()].some((owner) => this.sameLockOwner(owner, lock))
+      ) {
+        return 'ACTIVE';
+      }
+      if (lock.instanceId === this.instanceId) {
+        return 'INACTIVE';
+      }
+    }
+    return this.isProcessAlive(lock.pid) ? 'UNKNOWN' : 'INACTIVE';
+  }
+
+  private claimantActivity(
+    recoveryClaimPath: string,
+    claim: RecoveryClaim,
+  ): 'ACTIVE' | 'INACTIVE' | 'UNKNOWN' {
+    if (claim.format === 'CURRENT') {
+      const registered = liveRecoveryClaimants.get(recoveryClaimPath);
+      if (
+        registered !== undefined &&
+        registered.pid === claim.pid &&
+        registered.instanceId === claim.instanceId &&
+        registered.operationId === claim.operationId
+      ) {
+        return 'ACTIVE';
+      }
+      if (claim.instanceId === this.instanceId) {
+        return 'INACTIVE';
+      }
+    }
+    return this.isProcessAlive(claim.pid) ? 'UNKNOWN' : 'INACTIVE';
+  }
+
+  private claimMatchesLock(claim: CurrentRecoveryClaim, lock: LifecycleLock): boolean {
+    return (
+      lock.format === 'CURRENT' &&
+      claim.lock.pid === lock.pid &&
+      claim.lock.instanceId === lock.instanceId &&
+      claim.lock.operationId === lock.operationId &&
+      claim.lock.token === lock.token &&
+      claim.lock.acquiredAt === lock.acquiredAt
+    );
+  }
+
+  private lockOwnerRecord(lock: LifecycleLock): LockOwner {
+    if (lock.format !== 'CURRENT') {
+      return {
+        pid: lock.pid,
+        instanceId: '00000000-0000-4000-8000-000000000000',
+        operationId: '00000000-0000-4000-8000-000000000000',
+        token: lock.token ?? '00000000-0000-4000-8000-000000000000',
+        acquiredAt: lock.acquiredAt,
+      };
+    }
+    return {
+      pid: lock.pid,
+      instanceId: lock.instanceId,
+      operationId: lock.operationId,
+      token: lock.token,
+      acquiredAt: lock.acquiredAt,
+    };
+  }
+
+  private parseLockOwnerRecord(value: unknown): LockOwner | undefined {
+    if (
+      !isRecord(value) ||
+      !hasExactKeys(value, ['pid', 'instanceId', 'operationId', 'token', 'acquiredAt']) ||
+      !this.isPositivePid(value.pid) ||
+      typeof value.instanceId !== 'string' ||
+      !UUID_V4_PATTERN.test(value.instanceId) ||
+      typeof value.operationId !== 'string' ||
+      !UUID_V4_PATTERN.test(value.operationId) ||
+      typeof value.token !== 'string' ||
+      !UUID_V4_PATTERN.test(value.token) ||
+      typeof value.acquiredAt !== 'string' ||
+      value.acquiredAt.length === 0
+    ) {
+      return undefined;
+    }
+    return {
+      pid: value.pid,
+      instanceId: value.instanceId,
+      operationId: value.operationId,
+      token: value.token,
+      acquiredAt: value.acquiredAt,
+    };
+  }
+
+  private isPositivePid(value: unknown): value is number {
+    return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+  }
+
+  private sameLockOwner(left: LockOwner, right: LockOwner): boolean {
+    return (
+      left.pid === right.pid &&
+      left.instanceId === right.instanceId &&
+      left.operationId === right.operationId &&
+      left.token === right.token &&
+      left.acquiredAt === right.acquiredAt
+    );
+  }
+
+  private registerLiveOwner(lockIdentity: string, owner: LockOwner): void {
+    const owners = liveOperationOwners.get(lockIdentity) ?? new Map<string, LockOwner>();
+    owners.set(`${owner.instanceId}\u0000${owner.operationId}\u0000${owner.token}`, owner);
+    liveOperationOwners.set(lockIdentity, owners);
+  }
+
+  private unregisterLiveOwner(lockIdentity: string, owner: LockOwner): void {
+    const owners = liveOperationOwners.get(lockIdentity);
+    if (owners === undefined) {
+      return;
+    }
+    owners.delete(`${owner.instanceId}\u0000${owner.operationId}\u0000${owner.token}`);
+    if (owners.size === 0) {
+      liveOperationOwners.delete(lockIdentity);
+    }
+  }
+
+  private attachCleanupFailure(primaryError: unknown, cleanupError: unknown): unknown {
+    if (typeof primaryError !== 'object' || primaryError === null) {
+      const combined = new Error('The operation and its lock cleanup both failed.', {
+        cause: primaryError,
+      });
+      Object.defineProperties(combined, {
+        primaryError: { configurable: true, value: primaryError },
+        cleanupError: { configurable: true, value: cleanupError },
+      });
+      return combined;
+    }
+    Object.defineProperty(primaryError, 'cleanupError', {
+      configurable: true,
+      value: cleanupError,
+    });
+    if (!('cause' in primaryError)) {
+      Object.defineProperty(primaryError, 'cause', {
+        configurable: true,
+        value: cleanupError,
+      });
+    }
+    return primaryError;
+  }
+
   private isProcessAlive(pid: number): boolean {
+    if (this.options.processLivenessProbe !== undefined) {
+      return this.options.processLivenessProbe(pid);
+    }
     try {
       process.kill(pid, 0);
       return true;
     } catch (error) {
       return !isCode(error, 'ESRCH');
-    }
-  }
-
-  private async safeLockPathExists(path: string): Promise<boolean> {
-    try {
-      return await this.pathExists(path);
-    } catch {
-      throw this.options.conflictError();
     }
   }
 
@@ -1343,26 +1843,58 @@ export class WorkItemOperationCoordinator {
     lockPath: string,
     recoveryClaimPath: string,
     expectedLock: OwnedFile,
-  ): Promise<boolean> {
+    owner: LockOwner,
+  ): Promise<void> {
+    if (this.options.injectLockProtocolFailure?.('before-release-claim-create') === true) {
+      throw this.options.updateError();
+    }
     const releaseClaimContent =
       JSON.stringify({
-        schemaVersion: JOURNAL_SCHEMA_VERSION,
-        pid: process.pid,
+        schemaVersion: LOCK_PROTOCOL_SCHEMA_VERSION,
+        pid: owner.pid,
+        instanceId: owner.instanceId,
+        operationId: owner.operationId,
         token: randomUUID(),
         purpose: 'RELEASE',
         acquiredAt: new Date().toISOString(),
+        lock: owner,
       }) + '\n';
     const releaseClaim = await this.createOwnedClaim(recoveryClaimPath, releaseClaimContent);
     if (releaseClaim === undefined) {
-      return false;
+      throw this.options.updateError();
     }
 
-    const released = await this.removeOwnedFile(lockPath, expectedLock).catch(() => false);
-    const canonicalLockPresent = await this.pathExists(lockPath).catch(() => true);
-    if (released || canonicalLockPresent) {
-      await this.releaseRecoveryClaim(recoveryClaimPath, releaseClaim);
+    const failures: unknown[] = [];
+    try {
+      if (this.options.injectLockProtocolFailure?.('before-release-lock-retire') === true) {
+        throw new Error('injected lifecycle lock retirement failure');
+      }
+      if (!(await this.removeOwnedFile(lockPath, expectedLock))) {
+        throw new Error('lifecycle lock retirement was not confirmed');
+      }
+    } catch (error) {
+      failures.push(error);
     }
-    return released;
+
+    try {
+      if (this.options.injectLockProtocolFailure?.('before-release-claim-retire') === true) {
+        throw new Error('injected release claim retirement failure');
+      }
+      if (!(await this.releaseRecoveryClaim(recoveryClaimPath, releaseClaim))) {
+        throw new Error('release claim retirement was not confirmed');
+      }
+    } catch (error) {
+      failures.push(error);
+    }
+
+    if (failures.length > 0) {
+      const releaseError = this.options.updateError();
+      Object.defineProperty(releaseError, 'cause', {
+        configurable: true,
+        value: failures.length === 1 ? failures[0] : failures,
+      });
+      throw releaseError;
+    }
   }
 
   private async createOwnedClaim(path: string, content: string): Promise<OwnedFile | undefined> {
