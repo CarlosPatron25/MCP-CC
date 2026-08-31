@@ -309,9 +309,9 @@ herramientas MCP.
 Status: Accepted.
 
 Closure note: M4.1B superó posteriormente la validación manual IBM Bob y
-Milestone 4.1 quedó `COMPLETED — FROZEN`. Milestone 5 está actualmente
-`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`; este cambio posterior no
-modifica la decisión técnica de ADR-017.
+Milestone 4.1 quedó `COMPLETED — FROZEN`. Milestone 5 superó posteriormente la
+validación manual oficial B1–B19 y quedó `COMPLETED — FROZEN`; este cambio
+posterior no modifica la decisión técnica de ADR-017.
 
 ## ADR-018: Base de conocimiento única de M5 y separación del ledger M4
 
@@ -360,10 +360,9 @@ Profile completo, almacenamiento compartido, sincronización ni servicio
 central.
 
 Implementation status: El contrato está definido en
-`MILESTONE_5_DESIGN.md`; M5 está
-`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION` y no se declara completado ni
-congelado. La atomicidad descrita para la base y sus proyecciones se aplica a
-cada commit M5. El bridge posterior a una mutación M3/M4 usa un segundo commit
+`MILESTONE_5_DESIGN.md`; M5 está `COMPLETED — FROZEN` tras la validación manual
+oficial B1–B19. La atomicidad descrita para la base y sus proyecciones se aplica
+a cada commit M5. El bridge posterior a una mutación M3/M4 usa un segundo commit
 físico y converge al releer el estado; no amplía esta decisión a una
 transacción cross-repository. `Knowledge revision` es un watermark global por
 dossier y no obliga a reescribir dossiers no afectados.
@@ -425,7 +424,7 @@ el `participantId` en claro. Una petición distinta conserva el dossier y falla
 como colisión global.
 
 Implementation status: Decisión aprobada, documentada e implementada. M5 está
-`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`, todavía no completado.
+`COMPLETED — FROZEN` tras la validación manual oficial mediante IBM Bob.
 
 Status: Accepted for Milestone 5.
 
@@ -471,7 +470,7 @@ errores y proyecciones deberán mantener esa limitación visible. Procedencia y
 transferencias serán eventos append-only y nunca sobrescribirán la historia.
 
 Implementation status: Decisión aprobada, documentada e implementada. M5 está
-`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`, todavía no completado.
+`COMPLETED — FROZEN` tras la validación manual oficial mediante IBM Bob.
 
 Status: Accepted for Milestone 5.
 
@@ -516,8 +515,7 @@ familia de mutación histórica que deba reabrir exigirá un cursor monotónico 
 una ampliación explícita de esta decisión.
 
 Implementation status: Decisión aprobada, documentada e implementada. M5 está
-`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`, todavía no completado ni
-congelado.
+`COMPLETED — FROZEN` tras la validación manual oficial mediante IBM Bob.
 
 Status: Accepted for Milestone 5.
 
@@ -577,8 +575,8 @@ ledgers, idempotencia `PENDING` ni contratos M3–M5.
 
 Implementation status: Decisión aprobada, documentada e implementada con
 pruebas de fallos en cada fase, correlación, PID reutilizado, concurrencia,
-journals y staging. M5 permanece
-`IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION`; no está completado ni
-congelado.
+journals y staging. La revalidación manual IBM Bob confirmó el comportamiento
+operativo y la ausencia de locks, claims, staging o journals residuales al
+cierre. M5 está `COMPLETED — FROZEN`.
 
 Status: Accepted as a corrective operational decision for Milestones 3–5.

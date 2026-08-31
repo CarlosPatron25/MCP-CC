@@ -172,7 +172,7 @@ regression were validated. The observations were non-blocking.
 
 `Milestone 4.1: COMPLETED — FROZEN`.
 
-## Milestone 5: IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION
+## Milestone 5: COMPLETED — FROZEN
 
 **Hecho verificado:** la implementación de producción M5 está presente y
 preserva las quince herramientas históricas M1–M4.1. Añade creación v2,
@@ -197,14 +197,23 @@ de solo lectura, el layout dual, el estado canónico con proyección legacy, la
 identidad declarada, la ausencia de archivado físico, el fence causal del
 bridge histórico y la reconciliación correlacionada del lock protocol.
 
-**Estado de validación:** M5 está
-`IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION`. La matriz reproducible y el
-plan manual están en
-[Pruebas_Milestone_5.md](Pruebas_Milestone_5.md). Los resultados automáticos
-finales de la corrección ADR-022 están registrados en `PASS`: formato,
-typecheck, lint, 38 archivos con 294 pruebas, build, check integrado, smoke
-compilado con 38 herramientas y diff check. La revalidación manual IBM Bob
-permanece pendiente. M5 no está completado ni congelado.
+**Estado de validación:** M5 está `COMPLETED — FROZEN`. La validación manual
+oficial mediante IBM Bob ejecutó B1–B19 con resultado satisfactorio sobre el
+commit `ea59fedc68a1769603e96fd048d3c3333cc9696a`, Node.js `v24.18.0` y un
+workspace corporativo aislado. Confirmó el ciclo de vida completo, sesiones,
+snapshots, workflow, relaciones, revisión semántica, auditoría, consolidación
+y cierre. El workspace terminó sin locks persistentes, staging, journals ni
+claims. La matriz reproducible, el registro por escenario y la evidencia de
+cierre están en [Pruebas_Milestone_5.md](Pruebas_Milestone_5.md). Los resultados
+automáticos finales de ADR-022 permanecen en `PASS`: formato, typecheck, lint,
+38 archivos con 294 pruebas, build, check integrado, smoke compilado con 38
+herramientas y diff check.
+
+**Observación funcional verificada:** `create_work_item_v2` deja inicializado
+el workflow M5. Una llamada inmediata posterior a
+`initialize_work_item_workflow` sobre ese mismo Work Item devuelve
+correctamente `WORK_ITEM_STATE_CONFLICT`; futuras baterías deben tratarlo como
+la confirmación esperada de bootstrap ya completado.
 
 **Corrección operativa ADR-022:** el lock protocol `2.0.0` correlaciona
 instancia MCP, operación, token, propósito y propietario del lock. El
@@ -227,17 +236,17 @@ limpieza.
 - `Milestone 4.1A: DESIGN APPROVED — FROZEN`
 - `Milestone 4.1B: IMPLEMENTED — AUTOMATIC VALIDATION PASS — MANUAL IBM BOB VALIDATION PASS`
 - `Milestone 4.1: COMPLETED — FROZEN`
-- `Milestone 5 Design: TECHNICAL CONTRACT COMPLETE — NOT FROZEN`
-- `Milestone 5 Implementation: IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION`
-- `Milestone 5: NOT COMPLETED — NOT FROZEN`
+- `Milestone 5 Design: TECHNICAL CONTRACT COMPLETE — FROZEN`
+- `Milestone 5 Implementation: IMPLEMENTED — VALIDATED — FROZEN`
+- `Milestone 5: COMPLETED — FROZEN`
 
 ## Post-Milestone 3 product evolution review
 
 The current architecture remains local and file-based. Milestone 4 persists
 Work Item data in the local authorized workspace. The M4.1A design and M4.1B
-implementation are frozen as Milestone 4.1. Milestone 5 is implemented under
-its complete technical contract and awaits manual IBM Bob revalidation after
-ADR-022; it is not completed or frozen.
+implementation are frozen as Milestone 4.1. Milestone 5 completed its manual
+IBM Bob validation, including the ADR-022 revalidation, and is frozen under its
+complete technical contract.
 
 The product direction now distinguishes a future WS Workspace Core, future
 Technology Profiles, and future Project Profiles. M1–M4.1 are the completed and

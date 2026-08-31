@@ -81,12 +81,11 @@ historical English compatibility. M4.1B implements that frozen design without
 changing the conceptual layering and has passed automatic and manual IBM Bob
 validation.
 
-Milestone 5 está
-`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. Su contrato técnico y la
-implementación local aditiva están disponibles; M5 todavía no está validado
-manualmente, completado ni congelado. La implementación avanza la visión hacia
-una base de conocimiento viva preservando la separación entre conocimiento
-estructurado del proyecto y cada Work Item Dossier.
+Milestone 5 está `COMPLETED — FROZEN`. Su contrato técnico y la implementación
+local aditiva superaron la validación manual oficial B1–B19 mediante IBM Bob,
+sin alterar la separación entre conocimiento estructurado del proyecto y cada
+Work Item Dossier. La implementación avanza la visión hacia una base de
+conocimiento viva dentro de esos límites.
 
 Approved M5 boundaries are:
 

@@ -149,9 +149,9 @@ Milestone 4.1 is `COMPLETED — FROZEN`.
 
 ## Milestone 5: ciclo asistido y conocimiento vivo
 
-**Estado:** M5 está
-`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`; esta sección describe el
-contrato implementado, todavía no completado ni congelado.
+**Estado:** M5 está `COMPLETED — FROZEN`; esta sección describe el contrato
+implementado y validado manualmente mediante IBM Bob. El cierre no modificó
+schemas, contratos públicos ni semántica aprobada.
 
 ### Creación y modelo físico
 
@@ -164,6 +164,12 @@ La inicialización M2→M3→M4→M5 es un bootstrap por fases bajo exclusión g
 Un error controlado retira el dossier nuevo. Si una caída deja un parcial, su
 manifest contiene sólo la huella SHA-256 de la petición normalizada completa y
 únicamente el retry exacto puede reanudarlo; otra petición falla como colisión.
+
+`create_work_item_v2` inicializa el workflow M5 como parte de ese bootstrap.
+En consecuencia, una llamada inmediata a `initialize_work_item_workflow` sobre
+el Work Item recién creado devuelve `WORK_ITEM_STATE_CONFLICT`, porque el
+workflow ya está inicializado. Este resultado es esperado en las baterías de
+validación; la inicialización explícita se reserva para dossiers históricos.
 
 Los históricos permanecen en `.ws-workspace/active/<workItemId>`. Los nuevos
 M5 usan

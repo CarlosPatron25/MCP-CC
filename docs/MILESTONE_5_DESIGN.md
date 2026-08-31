@@ -2,15 +2,17 @@
 
 ## Diseño técnico definitivo del ciclo de trabajo asistido y la base de conocimiento viva
 
-**Estado del diseño:** `CONTRATO TÉCNICO COMPLETO — NO CONGELADO`  
-**Estado de la implementación:** `IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`  
-**Estado de cierre de M5:** `NO COMPLETADO`
+**Estado del diseño:** `CONTRATO TÉCNICO COMPLETO — FROZEN`
+
+**Estado de la implementación:** `IMPLEMENTED — VALIDATED — FROZEN`
+
+**Estado de cierre de M5:** `COMPLETED — FROZEN`
 
 Este documento es el contrato técnico de Milestone 5. Fija como entrada las
 decisiones funcionales recibidas para M5, deriva las decisiones técnicas necesarias para
 implementarlas sobre la arquitectura real de M1–M4.1 y preserva expresamente
-los contratos históricos. Declara el contrato implementado, pero no declara
-validación manual, cierre ni congelación de M5.
+los contratos históricos. Declara el contrato implementado, validado
+manualmente, cerrado y congelado sin alterar contratos históricos.
 
 Los términos **hecho histórico verificado**, **decisión M5**, **implementado**
 y **diferido** se usan con significados distintos:
@@ -155,7 +157,7 @@ conceptos, cierre ni reapertura.
 | Identidad declarada   | Identidad estable suministrada por el cliente, validada por igualdad pero no autenticada.               |
 | Golden Work Item      | Clasificación preparada para conocimiento validado de referencia; su gobierno completo es futuro.       |
 
-## 6. Decisiones técnicas implementadas, pendientes de congelación
+## 6. Decisiones técnicas implementadas y congeladas
 
 ### 6.1 Dos raíces con permisos distintos
 
@@ -290,6 +292,13 @@ identidad declarada en claro. Sólo un retry que reproduzca exactamente esa
 petición puede reanudar el bootstrap; cualquier otra petición se trata como
 colisión global y no repara ni adopta el dossier.
 
+`create_work_item_v2` completa también la inicialización del workflow M5 del
+dossier nuevo. Por ello, una llamada inmediata posterior a
+`initialize_work_item_workflow` sobre ese mismo Work Item devuelve
+`WORK_ITEM_STATE_CONFLICT`: el workflow ya existe. Este resultado es esperado y
+debe usarse en futuras baterías para distinguir creación v2 de la incorporación
+explícita de un dossier histórico.
+
 ### 6.7 Archivado físico
 
 Completar, cancelar o reabrir no mueve la carpeta. Esta decisión:
@@ -341,7 +350,8 @@ Completar, cancelar o reabrir no mueve la carpeta. Esta decisión:
 37. Ninguna operación acepta una ruta arbitraria.
 38. Ninguna respuesta expone locks, staging, journals o paths nativos.
 39. Las herramientas M1–M4.1 siguen disponibles.
-40. M5 no se declara completado antes de la validación manual IBM Bob.
+40. M5 sólo se declara completado y congelado después de validación manual IBM
+    Bob satisfactoria y cierre documental aprobado.
 41. El valor `Knowledge revision` proyectado en cada dossier es el watermark
     global del último commit que afectó a ese dossier, no una copia que deba
     avanzar con mutaciones de otros Work Items.
@@ -1466,7 +1476,7 @@ documentación e inspección de diff. No se realiza una reescritura masiva.
 
 ## 27. Criterios de aceptación
 
-La implementación está entregada. M5 estará validado automáticamente cuando:
+La implementación está entregada. La validación automática final confirmó que:
 
 - todos los invariantes estén automatizados;
 - los 30 requisitos mínimos de la matriz tengan prueba;
@@ -1480,14 +1490,16 @@ La implementación está entregada. M5 estará validado automáticamente cuando:
 - el cliente stdio automatizado descubra e invoque las herramientas nuevas;
 - la documentación refleje el estado real.
 
-Hasta completar la validación manual, el único estado permitido es:
+La validación manual oficial posterior mediante IBM Bob ejecutó
+satisfactoriamente B1–B19 en un workspace corporativo aislado, sobre el commit
+`ea59fedc68a1769603e96fd048d3c3333cc9696a` y Node.js `v24.18.0`. Verificó
+sesiones, snapshots, workflow, relaciones, revisión semántica, auditoría,
+consolidación y cierre del ciclo de vida. El workspace terminó limpio, sin
+locks persistentes, staging, journals ni claims. El resultado registrado es:
 
 ```text
-IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION
+COMPLETED — FROZEN
 ```
-
-M5 sólo podrá marcarse `COMPLETED — FROZEN` después de validación manual y
-cierre documental aprobado.
 
 ## 28. Plan de pruebas automatizadas
 
@@ -1534,7 +1546,7 @@ cierre documental aprobado.
 - alternancia de mutaciones M3/M4/M5;
 - smoke en root temporal.
 
-## 29. Plan de validación manual IBM Bob
+## 29. Validación manual IBM Bob — PASS
 
 | Escenario                | Comportamiento estándar MCP | Experiencia Bob          | Degradable               |
 | ------------------------ | --------------------------- | ------------------------ | ------------------------ |
@@ -1550,11 +1562,12 @@ cierre documental aprobado.
 | cierre                   | confirmación requerida      | diálogo explícito        | `confirmation: true`     |
 | consulta posterior       | dossier y relaciones        | navegación               | Markdown/JSON            |
 
-Batería manual mínima:
+Batería manual ejecutada:
 
-El guion ejecutable, sus precondiciones y el registro de evidencia están en
-[Pruebas_Milestone_5.md](Pruebas_Milestone_5.md), pasos B1–B19. La secuencia
-funcional mínima es:
+El guion ejecutable y el registro canónico de evidencia están en
+[Pruebas_Milestone_5.md](Pruebas_Milestone_5.md), pasos B1–B19. La batería se
+ejecutó satisfactoriamente mediante IBM Bob. La secuencia funcional cubierta
+fue:
 
 1. inicializar workspace y comprobar capabilities;
 2. crear Work Item v2;
@@ -1726,11 +1739,12 @@ automatizada; el resultado final de la ejecución se registra únicamente en
 
 ## 35. Condición final de éxito
 
-M5 será validado satisfactoriamente cuando el desarrollador pueda trabajar mediante una
+M5 ha sido validado satisfactoriamente: el desarrollador puede trabajar mediante una
 sesión explícita, cambiar de contexto de forma segura, reanudar sin
 redescubrimiento, obtener hechos técnicos sin IA, consolidar conocimiento con
 procedencia, relacionarlo y gobernar conceptos, y completar o reabrir el Work
-Item sin perder historia.
+Item sin perder historia. El resultado manual oficial y sus observaciones están
+registrados en [Pruebas_Milestone_5.md](Pruebas_Milestone_5.md).
 
 La arquitectura sigue siendo local, portable, compatible y preparada
 para un futuro servicio compartido sin haberlo implementado prematuramente.

@@ -2,18 +2,42 @@
 
 ## Estado
 
-**Implementación:** `IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION`
+**Implementación:** `IMPLEMENTED — VALIDATED — FROZEN`
 
 **Validación automática de la corrección ADR-022:** `PASS — 2026-07-29`
 
-**Revalidación manual IBM Bob:** `PENDIENTE`
+**Revalidación manual IBM Bob:** `PASS — B1–B19 COMPLETADA`
 
-**Cierre de Milestone 5:** `NO COMPLETADO — NO CONGELADO`
+**Cierre de Milestone 5:** `COMPLETED — FROZEN`
 
-Este documento registra la batería reproducible y el guion manual de
-Milestone 5 y la corrección operativa ADR-022. La validación automática final
-de la corrección se registra sobre el árbol de trabajo descrito en la sección 2. La revalidación IBM Bob continúa pendiente y, por tanto, M5 no está
-completado ni congelado.
+Este documento registra la batería reproducible, la validación manual oficial
+de Milestone 5 y la corrección operativa ADR-022. La validación automática final
+de la corrección se registra sobre el árbol de trabajo descrito en la sección 2.
+La revalidación IBM Bob completó B1–B19 satisfactoriamente; M5 está cerrado y
+congelado.
+
+## 0. Resultado oficial de la validación manual
+
+**Fuente principal:** informe completo de validación manual mediante IBM Bob
+adjunto al cierre de Milestone 5. Este documento registra su resultado sin
+reproducir datos corporativos sensibles.
+
+La batería B1–B19 se ejecutó por completo y obtuvo `PASS` en un entorno
+corporativo independiente: servidor `ws-workspace-mcp` v`0.1.0`, commit
+`ea59fedc68a1769603e96fd048d3c3333cc9696a`, Node.js `v24.18.0` y workspace
+aislado. Se verificaron la estructura del workspace, la creación de los Work
+Items de validación y el ciclo de vida completo: sesiones, snapshots,
+workflow, relaciones, revisión semántica, auditoría, consolidación y cierre.
+
+Al finalizar, el workspace estaba limpio: no había locks persistentes, staging,
+journals pendientes ni claims. No se registraron residuos operativos.
+
+**Observación funcional esperada:** `create_work_item_v2` inicializa
+automáticamente el workflow M5. Por tanto, invocar
+`initialize_work_item_workflow` inmediatamente después sobre un Work Item recién
+creado devuelve correctamente `WORK_ITEM_STATE_CONFLICT`. Las futuras baterías
+deben registrar ese conflicto como confirmación de bootstrap ya completado, no
+como incidencia.
 
 ## 1. Contrato de evidencia
 
@@ -176,7 +200,7 @@ por sesión, workflow, Work Item, catálogo o relación.
 | 61  | Observar `RELEASE` del propietario local activo   | No se reconcilia mientras la operación exacta siga registrada                      | `work-item-lock-protocol.test.ts`                    | `PASS`    |
 | 62  | Combinar lock y `RELEASE` con journal válido      | Se preservan los tres artefactos y se devuelve conflicto                           | `work-item-lock-protocol.test.ts`                    | `PASS`    |
 
-## 4. Plan de validación manual IBM Bob
+## 4. Validación manual oficial IBM Bob — PASS
 
 ### 4.1 Precondiciones
 
@@ -234,27 +258,27 @@ limpias previstas para esa batería.
 
 ### 4.4 Recorrido manual B1–B19
 
-| #   | Acción en IBM Bob                          | Evidencia esperada                                       | Resultado   |
-| --- | ------------------------------------------ | -------------------------------------------------------- | ----------- |
-| B1  | Descubrir capabilities y catálogo          | 38 herramientas exactas, sin paths absolutos             | `PENDIENTE` |
-| B2  | Inicializar dos veces                      | resultado inicial y retry idempotente, sin roots         | `PENDIENTE` |
-| B3  | Crear A y B por v2                         | bootstrap M3/M4/M5 completo y dossier `es-ES`            | `PENDIENTE` |
-| B4  | Inicializar histórico H                    | sólo artefactos M5 autorizados; sin migración            | `PENDIENTE` |
-| B5  | Activar sesión de A con Actor A            | snapshot y sesión activa, sin contenido fuente           | `PENDIENTE` |
-| B6  | Checkpoint, consulta activa y reanudación  | contexto acotado y revisiones trazables                  | `PENDIENTE` |
-| B7  | Cambiar A→B y suspender B                  | A suspendido, B activo y después ninguna sesión A        | `PENDIENTE` |
-| B8  | Añadir B y transferir responsabilidad      | responsable, rol final de A e historial coherentes       | `PENDIENTE` |
-| B9  | Relacionar A y B                           | dos perspectivas derivadas, sin movimiento físico        | `PENDIENTE` |
-| B10 | Proponer, rechazar y aprobar concepto      | evidencia real, supresión equivalente y catálogo oficial | `PENDIENTE` |
-| B11 | Consolidar A y refrescar contexto          | proyecciones 09–12 y resumen M4+M5 explícito             | `PENDIENTE` |
-| B12 | Registrar y resolver observación semántica | ambas entradas visibles; A continúa `IN_PROGRESS`        | `PENDIENTE` |
-| B13 | Preparar review estructural aprobado       | plan, ejecuciones, sesión y consolidación válidos        | `PENDIENTE` |
-| B14 | Rechazo de A y cierre por B                | `COMPLETED`, `CLOSED`, fence y dossier inmóvil           | `PENDIENTE` |
-| B15 | Decisión M4 post-cierre y retry exacto     | reapertura causal única en segundo commit M5             | `PENDIENTE` |
-| B16 | Idempotencia de una mutación M5            | retry sin write y conflicto key/payload diferenciado     | `PENDIENTE` |
-| B17 | Reiniciar Bob y releer                     | persistencia y derivación estables                       | `PENDIENTE` |
-| B18 | Revisar respuestas capturadas              | sin datos o ubicaciones sensibles                        | `PENDIENTE` |
-| B19 | Comparar watermarks A/B                    | sólo A avanza; B sigue consistente                       | `PENDIENTE` |
+| #   | Acción en IBM Bob                          | Evidencia esperada                                       | Resultado |
+| --- | ------------------------------------------ | -------------------------------------------------------- | --------- |
+| B1  | Descubrir capabilities y catálogo          | 38 herramientas exactas, sin paths absolutos             | `PASS`    |
+| B2  | Inicializar dos veces                      | resultado inicial y retry idempotente, sin roots         | `PASS`    |
+| B3  | Crear A y B por v2                         | bootstrap M3/M4/M5 completo y dossier `es-ES`            | `PASS`    |
+| B4  | Inicializar histórico H                    | sólo artefactos M5 autorizados; sin migración            | `PASS`    |
+| B5  | Activar sesión de A con Actor A            | snapshot y sesión activa, sin contenido fuente           | `PASS`    |
+| B6  | Checkpoint, consulta activa y reanudación  | contexto acotado y revisiones trazables                  | `PASS`    |
+| B7  | Cambiar A→B y suspender B                  | A suspendido, B activo y después ninguna sesión A        | `PASS`    |
+| B8  | Añadir B y transferir responsabilidad      | responsable, rol final de A e historial coherentes       | `PASS`    |
+| B9  | Relacionar A y B                           | dos perspectivas derivadas, sin movimiento físico        | `PASS`    |
+| B10 | Proponer, rechazar y aprobar concepto      | evidencia real, supresión equivalente y catálogo oficial | `PASS`    |
+| B11 | Consolidar A y refrescar contexto          | proyecciones 09–12 y resumen M4+M5 explícito             | `PASS`    |
+| B12 | Registrar y resolver observación semántica | ambas entradas visibles; A continúa `IN_PROGRESS`        | `PASS`    |
+| B13 | Preparar review estructural aprobado       | plan, ejecuciones, sesión y consolidación válidos        | `PASS`    |
+| B14 | Rechazo de A y cierre por B                | `COMPLETED`, `CLOSED`, fence y dossier inmóvil           | `PASS`    |
+| B15 | Decisión M4 post-cierre y retry exacto     | reapertura causal única en segundo commit M5             | `PASS`    |
+| B16 | Idempotencia de una mutación M5            | retry sin write y conflicto key/payload diferenciado     | `PASS`    |
+| B17 | Reiniciar Bob y releer                     | persistencia y derivación estables                       | `PASS`    |
+| B18 | Revisar respuestas capturadas              | sin datos o ubicaciones sensibles                        | `PASS`    |
+| B19 | Comparar watermarks A/B                    | sólo A avanza; B sigue consistente                       | `PASS`    |
 
 ### 4.5 Detalle ejecutable de B1–B19
 
@@ -287,6 +311,10 @@ idempotency keys nuevas. Para cada respuesta y dossier, comprobar el layout
 M3 y M4 inicializados, fuente M5 actualizada, artefactos 09–12 presentes,
 secciones M5/M4/M3 del manifest, marker bootstrap no `PENDING` y revisiones
 coherentes. Los valores se obtienen de respuestas reales y lecturas autorizadas.
+No debe invocarse una inicialización adicional del workflow de A o B: la
+creación v2 ya la realiza. Si se comprueba explícitamente, la llamada inmediata
+a `initialize_work_item_workflow` debe devolver `WORK_ITEM_STATE_CONFLICT`, que
+es el resultado esperado.
 
 #### B4 — Histórico
 
@@ -408,7 +436,7 @@ registrar ambos `Knowledge revision`. Ejecutar la mutación, releer ambos
 manifests y comprobar que A avanza, B conserva exactamente su watermark y B
 sigue consistente aunque haya avanzado la revisión global.
 
-### 4.6 Evidencia manual que debe adjuntarse
+### 4.6 Evidencia manual utilizada para el cierre
 
 - fecha, versión de IBM Bob y plataforma;
 - configuración redactada que muestre ambas variables sin revelar sus valores;
@@ -424,14 +452,17 @@ sigue consistente aunque haya avanzado la revisión global.
 - confirmación explícita de que no hubo escrituras bajo la raíz de proyecto; y
 - confirmación de limpieza de las raíces temporales.
 
-### 4.7 Revalidación correctiva ADR-022
+El informe completo de IBM Bob asociado al cierre contiene esta evidencia y es
+la fuente principal del resultado `PASS` B1–B19 registrado en la sección 0.
 
-La revalidación posterior a esta corrección debe usar primero roots
-desechables. Con el servidor recompilado, ejecutar una mutación M5 válida, su
-retry exacto, reiniciar IBM Bob y repetir una operación de lectura y otra
-mutación. Al quedar el servidor ocioso no deben permanecer lifecycle locks ni
-recovery claims de esas operaciones. Las respuestas deben conservar los
-códigos MCP históricos y no exponer metadata del protocolo.
+### 4.7 Revalidación correctiva ADR-022 — PASS
+
+La revalidación posterior a esta corrección se completó satisfactoriamente como
+parte del cierre oficial. Con el servidor recompilado se verificaron una
+mutación M5 válida, su retry exacto, el reinicio de IBM Bob, una lectura y otra
+mutación. Al finalizar no permanecieron lifecycle locks ni recovery claims; el
+workspace tampoco conservó staging ni journals pendientes. Las respuestas
+mantuvieron los códigos MCP históricos y no expusieron metadata del protocolo.
 
 Los fallos de liberación, PID reutilizado, tokens divergentes, claim-only,
 journal sin lock y staging desconocido se validan mediante la suite automática;
@@ -463,15 +494,15 @@ correlacionados o duda sobre un propietario activo detienen la intervención.
 No se limpia por antigüedad y no se reutiliza este procedimiento para otros
 IDs sin una autorización nueva.
 
-## 5. Regla de cierre
+## 5. Regla de cierre aplicada
 
-Mientras exista cualquier resultado `PENDIENTE` o `FAIL`, el estado permanece:
+La regla de cierre exigía que no existiera ningún resultado `PENDIENTE` o
+`FAIL`:
 
 ```text
-IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION
+COMPLETED — FROZEN
 ```
 
-Un `PASS` automático no autoriza por sí solo `COMPLETED — FROZEN`. Ese cierre
-requiere que B1–B19 y la sección 4.7 tengan evidencia manual satisfactoria, que
-las incidencias bloqueantes estén resueltas y que exista una decisión
-documental separada de cierre. Este documento no adopta esa decisión.
+El `PASS` automático no bastó por sí solo. B1–B19 y la sección 4.7 tienen
+evidencia manual satisfactoria, no quedaron incidencias bloqueantes y el cierre
+documental se registra en este documento y en el estado canónico del proyecto.

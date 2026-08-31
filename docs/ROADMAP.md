@@ -105,7 +105,7 @@ marker, historical compatibility, and M1–M4 regression were validated. The
 observations were non-blocking. The language is not a runtime variable or MCP
 parameter, and no tool contract changed. Milestone 4.1 is `COMPLETED — FROZEN`.
 
-## Milestone 5: Ciclo asistido y base de conocimiento viva — IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION
+## Milestone 5: Ciclo asistido y base de conocimiento viva — COMPLETED — FROZEN
 
 **Hecho verificado:** M1–M4.1 permanecen completados y congelados. La
 implementación aditiva M5 preserva las quince herramientas históricas e
@@ -131,12 +131,14 @@ queda diferido. Los estados canónicos M5 son `IN_PROGRESS`, `COMPLETED` y
 
 **Implementación y validación:** los incrementos compatibles de contrato,
 workflow, observación, sesiones, dossier, relaciones, conceptos, revisión y
-MCP están implementados. El estado vigente es
-`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. La matriz automática y el
-plan Bob se mantienen en
-[Pruebas_Milestone_5.md](Pruebas_Milestone_5.md); cualquier resultado sin
-evidencia final permanece `PENDIENTE`. El cierre requiere validación manual y
-aprobación separada, por lo que M5 no está completado ni congelado.
+MCP están implementados y congelados. La validación manual oficial mediante
+IBM Bob completó satisfactoriamente B1–B19 en un workspace corporativo aislado,
+con ciclo de vida, sesiones, snapshots, workflow, relaciones, revisión
+semántica, auditoría, consolidación, cierre y limpieza operacional verificados.
+El workspace final no tenía locks persistentes ni staging, journals o claims.
+La matriz automática y el registro manual canónico están en
+[Pruebas_Milestone_5.md](Pruebas_Milestone_5.md). El estado vigente es
+`COMPLETED — FROZEN`.
 
 ## Post-MVP architecture options
 

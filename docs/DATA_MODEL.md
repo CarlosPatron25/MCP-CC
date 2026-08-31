@@ -178,9 +178,9 @@ or rewrite.
 
 ## Modelo de conocimiento implementado de Milestone 5
 
-**Estado:** `IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. Los tipos de
-esta sección describen el contrato implementado; el estado no declara
-validación manual, cierre ni congelación de M5.
+**Estado:** `COMPLETED — FROZEN`. Los tipos de esta sección describen el
+contrato implementado, validado manualmente mediante IBM Bob y congelado para
+M5; la validación no modificó schemas ni contratos públicos.
 
 ### Fuente estructurada y autoridad
 

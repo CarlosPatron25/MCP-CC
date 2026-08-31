@@ -53,11 +53,9 @@ validation have passed, and Milestone 4 is completed. M4.1A is a
 implemented and has passed automatic and manual IBM Bob validation. Milestone
 4.1 is `COMPLETED — FROZEN`.
 
-Milestone 5 está
-`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. Su contrato y su
-implementación aditiva están disponibles, pero este estado no declara
-validación manual, cierre ni congelación. M1–M4.1 permanecen preservados y
-congelados.
+Milestone 5 está `COMPLETED — FROZEN`. Su contrato y su implementación aditiva
+han superado la validación manual oficial B1–B19 mediante IBM Bob en un
+workspace corporativo aislado. M1–M4.1 permanecen preservados y congelados.
 
 ## M4.1A document-language boundary
 
@@ -84,10 +82,12 @@ consolidación orientada al lector futuro y ciclo de vida lógico. IBM Bob es el
 cliente de referencia, pero las reglas siguen siendo portables mediante MCP y
 puertos de aplicación.
 
-**Implementación:** el contrato completo está en `MILESTONE_5_DESIGN.md`. El
-estado vigente es `IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`; el
-servicio central, sharing, autenticación corporativa, scanner completo, PDF y
-PowerPoint permanecen fuera de M5.
+**Implementación y cierre:** el contrato completo está en
+`MILESTONE_5_DESIGN.md`. El estado vigente es `COMPLETED — FROZEN`: B1–B19 se
+ejecutó satisfactoriamente mediante IBM Bob y verificó el ciclo M5 completo y
+la limpieza del workspace al cierre. El servicio central, sharing,
+autenticación corporativa, scanner completo, PDF y PowerPoint permanecen fuera
+de M5.
 
 ## Outside the MVP
 

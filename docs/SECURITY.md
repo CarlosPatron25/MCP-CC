@@ -129,10 +129,12 @@ permission, workspace-wide lock, sidecar, or change to M3/M4 locking, journal,
 recovery or ledger security. Automatic and manual IBM Bob validation passed,
 and Milestone 4.1 is `COMPLETED — FROZEN`.
 
-## Contrato de seguridad de Milestone 5 (implementado; validación manual pendiente)
+## Contrato de seguridad de Milestone 5 (implementado y validado manualmente)
 
-**Estado:** `IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION`. La validación
-manual de los límites de seguridad en IBM Bob sigue pendiente.
+**Estado:** `COMPLETED — FROZEN`. La validación manual oficial B1–B19 mediante
+IBM Bob confirmó los límites de seguridad M5 en un workspace corporativo
+aislado, incluida la ausencia de rutas sensibles en las respuestas y de
+residuos operativos al cierre.
 
 M5 mantiene `WS_WORKSPACE_ROOT` como única raíz escribible y añade
 `WS_PROJECT_SOURCE_ROOT` como autoridad separada de solo lectura. Ambas raíces

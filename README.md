@@ -38,13 +38,14 @@ Milestone 4 uses the current local file-based workspace. Milestone 4.1A is the
 approved and frozen documentation/localisation design; M4.1B has completed
 automatic and manual IBM Bob validation. Milestone 4.1 is closed and frozen.
 
-Milestone 5 está
-`IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION`. Su contrato técnico
-definitivo está documentado en
-[MILESTONE_5_DESIGN.md](docs/MILESTONE_5_DESIGN.md), y la batería de validación
-está definida en
-[Pruebas_Milestone_5.md](docs/Pruebas_Milestone_5.md). Este estado no equivale
-a revalidación manual, cierre ni congelación de M5.
+Milestone 5 está `COMPLETED — FROZEN`. La validación manual oficial mediante
+IBM Bob ejecutó satisfactoriamente la batería B1–B19 en un workspace corporativo
+aislado, sobre el commit `ea59fedc68a1769603e96fd048d3c3333cc9696a` y Node.js
+`v24.18.0`. El resultado confirmó el ciclo de vida completo, sesiones,
+snapshots, workflow, relaciones, revisión semántica, auditoría, consolidación,
+cierre y limpieza operacional: no quedaron locks persistentes, staging,
+journals ni claims. El detalle y la evidencia de cierre constan en
+[Pruebas_Milestone_5.md](docs/Pruebas_Milestone_5.md).
 
 La implementación M5 construye y mantiene una base de conocimiento viva del
 proyecto sobre una única fuente estructurada
@@ -74,7 +75,7 @@ automatic validation and manual IBM Bob validation `PASS`. Milestone 4.1 is
 `COMPLETED — FROZEN`; no `WS_DOCUMENT_LANGUAGE` variable or MCP contract change
 exists, and historical Work Items retain their English baseline.
 
-## Estado de diseño e implementación de Milestone 5
+## Estado de diseño, implementación y cierre de Milestone 5
 
 **Hecho verificado:** la implementación preserva las quince herramientas
 históricas M1–M4.1 y añade contratos MCP M5 sin renombrar ni retirar los
@@ -89,15 +90,21 @@ explícita y de solo lectura; layout dual; estados canónicos
 `DECLARED`; cierre lógico sin archivado físico; y fence causal para el bridge
 M3/M4. Véanse ADR-018, ADR-019, ADR-020, ADR-021 y ADR-022.
 
-**Implementación:** M5 está
-`IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION`. La corrección ADR-022
-añade identidad correlacionada de instancia, operación y token, clasificación
-conjunta de lock/claim/transacción y propagación determinista de fallos de
-liberación. La validación automática pasa con 38 archivos y 294 pruebas y el
-smoke compilado conserva 38 herramientas MCP. La evidencia y la revalidación
-manual pendiente se registran en
-[Pruebas_Milestone_5.md](docs/Pruebas_Milestone_5.md). M5 no puede declararse
-completado sin revalidación manual IBM Bob y cierre documental aprobado.
+**Cierre verificado:** M5 está `COMPLETED — FROZEN`. La corrección ADR-022
+mantiene identidad correlacionada de instancia, operación y token,
+clasificación conjunta de lock/claim/transacción y propagación determinista de
+fallos de liberación. La validación automática final pasó con 38 archivos y
+294 pruebas, y el smoke compilado conservó 38 herramientas MCP. La validación
+manual oficial B1–B19 mediante IBM Bob fue satisfactoria y confirmó que el
+workspace aislado terminó sin residuos operativos. La evidencia canónica está
+en [Pruebas_Milestone_5.md](docs/Pruebas_Milestone_5.md).
+
+**Observación funcional para futuras baterías:** `create_work_item_v2`
+inicializa automáticamente el workflow M5. Por tanto,
+`initialize_work_item_workflow`, invocado inmediatamente después sobre ese
+Work Item, devuelve correctamente `WORK_ITEM_STATE_CONFLICT`. Es el resultado
+esperado de un workflow ya inicializado, no un defecto ni una inicialización
+adicional que deba ejecutarse.
 
 ## Requirements
 
@@ -105,6 +112,12 @@ completado sin revalidación manual IBM Bob y cierre documental aprobado.
 - npm. In PowerShell environments that block npm.ps1, use npm.cmd.
 
 ## Installation and validation
+
+La guía operativa de Windows e IBM Bob está en
+[INSTALLATION_GUIDE_WINDOWS_IBM_BOB.md](docs/INSTALLATION_GUIDE_WINDOWS_IBM_BOB.md).
+El [registro histórico de instalación corporativa](docs/VALIDATION_CORPORATE_INSTALLATION_2026-07-30.md)
+se conserva como evidencia complementaria; el resultado formal de M5 permanece
+en [Pruebas_Milestone_5.md](docs/Pruebas_Milestone_5.md).
 
     npm.cmd install
     npm.cmd run build

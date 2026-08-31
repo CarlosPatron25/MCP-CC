@@ -292,7 +292,7 @@ are strictly bounded, validated, and created without replacement. M4.1B is
 implemented with automatic and manual IBM Bob validation passed. Milestone 4.1
 is `COMPLETED — FROZEN`.
 
-## Arquitectura de Milestone 5 (implementada; validación manual pendiente)
+## Arquitectura de Milestone 5 (implementada y validada manualmente)
 
 **Hecho verificado:** la implementación ejecutable conserva
 `.ws-workspace/active/<workItemId>` para históricos, el ledger M4 por dossier y
@@ -346,10 +346,11 @@ registra la revisión global vigente en el último commit que afectó a ese
 dossier. Los dossiers no afectados no se reescriben para avanzar ese número;
 su consistencia se valida por `workItemRevision` y contenido autoritativo.
 
-**Estado:** la implementación está
-`IMPLEMENTED — PENDING MANUAL IBM BOB VALIDATION` conforme a
-[MILESTONE_5_DESIGN.md](MILESTONE_5_DESIGN.md). M5 no está completado ni
-congelado; la evidencia automática y el plan manual se registran en
+**Estado:** M5 está `COMPLETED — FROZEN` conforme a
+[MILESTONE_5_DESIGN.md](MILESTONE_5_DESIGN.md). La validación manual oficial
+mediante IBM Bob completó satisfactoriamente B1–B19 y confirmó el ciclo M5
+completo y la ausencia de residuos operativos en el workspace aislado. La
+evidencia automática y manual se registra en
 [Pruebas_Milestone_5.md](Pruebas_Milestone_5.md).
 
 ## Infrastructure independence and future profiles

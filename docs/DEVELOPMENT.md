@@ -204,11 +204,11 @@ fifteen-tool MCP schemas. See `Pruebas_Milestone_4_1.md` for reproducible
 automatic results. Automatic and manual IBM Bob validation have passed.
 Milestone 4.1 is `COMPLETED — FROZEN`.
 
-## Convenciones de desarrollo de Milestone 5 (implementado; revalidación manual pendiente)
+## Convenciones de desarrollo de Milestone 5 (implementado y congelado)
 
-M5 está `IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION`; las reglas siguientes
-continúan siendo obligatorias para mantenimiento y correcciones. Este estado no
-declara M5 completado ni congelado.
+M5 está `COMPLETED — FROZEN`; las reglas siguientes continúan siendo
+obligatorias para mantenimiento y correcciones. La validación manual oficial
+IBM Bob, incluida la revalidación ADR-022, se completó satisfactoriamente.
 
 - Keep `.ws-workspace/records/KNOWLEDGE_BASE.json` as the sole M5 structured
   source. Never add M5 fields or operation names to the strict M4 ledger.
@@ -268,10 +268,8 @@ npm.cmd run check
 npm.cmd run smoke
 ```
 
-El estado vigente es
-`IMPLEMENTED — PENDING MANUAL IBM BOB REVALIDATION`. No se marcará M5 como
-completado sin revalidación manual separada y cierre aprobado. La evidencia se
-registrará en `Pruebas_Milestone_5.md`.
+El estado vigente es `COMPLETED — FROZEN`. La evidencia de la revalidación
+manual y del cierre aprobado está registrada en `Pruebas_Milestone_5.md`.
 
 ## Adding a document or template
 
